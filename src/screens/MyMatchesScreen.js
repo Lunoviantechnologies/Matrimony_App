@@ -19,14 +19,14 @@ const MyMatchesScreen = () => {
       setLoading(true);
       try {
         const [all, mine, sentReq, recvReq, accRecv, accSent, rejRecv, rejSent] = await Promise.all([
-          axiosInstance.get("/profiles/Allprofiles"),
-          axiosInstance.get(`/profiles/myprofiles/${userId}`),
-          axiosInstance.get(`/friends/sent/${userId}`),
-          axiosInstance.get(`/friends/received/${userId}`),
-          axiosInstance.get(`/friends/accepted/received/${userId}`),
-          axiosInstance.get(`/friends/accepted/sent/${userId}`),
-          axiosInstance.get(`/friends/rejected/received/${userId}`),
-          axiosInstance.get(`/friends/rejected/sent/${userId}`),
+          axiosInstance.get("/api/profiles/Allprofiles"),
+          axiosInstance.get(`/api/profiles/myprofiles/${userId}`),
+          axiosInstance.get(`/api/friends/sent/${userId}`),
+          axiosInstance.get(`/api/friends/received/${userId}`),
+          axiosInstance.get(`/api/friends/accepted/received/${userId}`),
+          axiosInstance.get(`/api/friends/accepted/sent/${userId}`),
+          axiosInstance.get(`/api/friends/rejected/received/${userId}`),
+          axiosInstance.get(`/api/friends/rejected/sent/${userId}`),
         ]);
         setProfiles(Array.isArray(all.data) ? all.data : []);
         setMe(mine.data);
@@ -70,7 +70,7 @@ const MyMatchesScreen = () => {
 
   const handleSendRequest = async (receiverId) => {
     try {
-      await axiosInstance.post(`/friends/send/${userId}/${receiverId}`);
+      await axiosInstance.post(`/api/friends/send/${userId}/${receiverId}`);
       setSent((prev) => [...prev, { senderId: userId, receiverId }]);
     } catch (e) {
       console.log("send request error:", e?.response?.data || e?.message);

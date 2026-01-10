@@ -110,11 +110,16 @@ const LoginScreen = ({ navigation }) => {
             <TouchableOpacity onPress={() => navigation.navigate("Terms")} style={styles.legalLink}>
               <Text style={styles.legalText}>Terms & Conditions</Text>
             </TouchableOpacity>
-            <View style={styles.legalDot} />
             <TouchableOpacity onPress={() => navigation.navigate("PrivacyPolicy")} style={styles.legalLink}>
               <Text style={styles.legalText}>Privacy Policy</Text>
+              </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate("CommunityGuidelines")} style={styles.legalLink}>
+              <Text style={styles.legalText}>Community Guidelines</Text>
             </TouchableOpacity>
-          </View>
+            <TouchableOpacity onPress={() => navigation.navigate("RefundPolicy")} style={styles.legalLink}>
+              <Text style={styles.legalText}>Refund Policy</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </View>
@@ -129,6 +134,7 @@ const styles = StyleSheet.create({
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(217,245,228,0.25)" },
   centerWrapper: {
     flex: 1,
+    flexGrow: 1,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 16,
@@ -136,9 +142,9 @@ const styles = StyleSheet.create({
   card: {
     width: "92%",
     maxWidth: 360,
-    backgroundColor: "#fff",
+    backgroundColor: "rgba(255,255,255,0.6)",
     borderRadius: 16,
-    padding: 20,
+    padding: 16,
     alignItems: "center",
     shadowColor: "#000",
     shadowOpacity: 0.15,
@@ -217,11 +223,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
+    flexWrap: "wrap",
+    gap: 8,
   },
-  legalLink: { paddingVertical: 4 },
+  legalLink: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: "#f3f4f6",
+  },
   legalText: { color: "#6c3cff", fontWeight: "700", fontSize: 12 },
-  legalDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: "#cbd5e1" },
 });
 
 export default LoginScreen;

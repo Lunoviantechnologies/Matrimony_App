@@ -1,6 +1,6 @@
 import axios from "axios";
 import { BASE_URL } from "@env";
-import { getSession } from "./authSession";
+import { getSession, loadSessionFromStorage } from "./authSession";
 
 const axiosInstance = axios.create({
   baseURL: BASE_URL,
@@ -10,8 +10,13 @@ const axiosInstance = axios.create({
   },
 });
 
-axiosInstance.interceptors.request.use((config) => {
-  const { token } = getSession();
+axiosInstance.interceptors.request.use(async (config) => {
+  let { token } = getSession();
+  // If memory is empty (app reload), hydrate from storage.
+  if (!token) {
+    const restored = await loadSessionFromStorage();
+    token = restored.token;
+  }
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

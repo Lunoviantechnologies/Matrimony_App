@@ -1,5 +1,16 @@
 import React, { useEffect, useState } from "react";
-import { SafeAreaView, View, Text, FlatList, ActivityIndicator, TouchableOpacity, StyleSheet, RefreshControl } from "react-native";
+import {
+  SafeAreaView,
+  View,
+  Text,
+  FlatList,
+  ActivityIndicator,
+  TouchableOpacity,
+  StyleSheet,
+  RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
 import { fetchNotificationsApi, markNotificationReadApi, markAllNotificationsReadApi } from "../api/api";
 import { getSession } from "../api/authSession";
 
@@ -18,7 +29,9 @@ const NotificationsScreen = () => {
         return;
       }
       const res = await fetchNotificationsApi(userId);
-      setItems(Array.isArray(res?.data) ? res.data : []);
+      const data = Array.isArray(res?.data) ? res.data : res?.data?.content || [];
+      const normalized = data.map((n) => ({ ...n, read: Boolean(n.read) }));
+      setItems(normalized);
     } catch (e) {
       setError("Failed to load notifications");
     } finally {
@@ -58,27 +71,21 @@ const NotificationsScreen = () => {
     </TouchableOpacity>
   );
 
+  let content = null;
   if (loading) {
-    return (
-      <SafeAreaView style={styles.root}>
-        <ActivityIndicator size="large" color="#1f1f39" />
-      </SafeAreaView>
-    );
-  }
-
-  if (error) {
-    return (
-      <SafeAreaView style={styles.root}>
+    content = <ActivityIndicator size="large" color="#1f1f39" />;
+  } else if (error) {
+    content = (
+      <>
         <Text style={styles.error}>{error}</Text>
         <TouchableOpacity style={styles.primaryBtn} onPress={load}>
           <Text style={styles.primaryText}>Retry</Text>
         </TouchableOpacity>
-      </SafeAreaView>
+      </>
     );
-  }
-
-  return (
-    <SafeAreaView style={styles.root}>
+  } else {
+    content = (
+      <>
       <View style={styles.headerRow}>
         <Text style={styles.header}>Notifications</Text>
         <TouchableOpacity onPress={onMarkAll}>
@@ -90,10 +97,22 @@ const NotificationsScreen = () => {
         keyExtractor={(item, idx) => `${item.id || idx}`}
         renderItem={renderItem}
         contentContainerStyle={styles.list}
+          keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
         ListEmptyComponent={<Text style={styles.empty}>No notifications</Text>}
       />
-    </SafeAreaView>
+      </>
+    );
+  }
+
+  return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
+    >
+      <SafeAreaView style={styles.root}>{content}</SafeAreaView>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -102,7 +121,7 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
   header: { fontSize: 20, fontWeight: "800", color: "#0f172a" },
   link: { color: "#2563eb", fontWeight: "700" },
-  list: { paddingBottom: 20, gap: 10 },
+  list: { paddingBottom: 40, gap: 10 },
   card: {
     backgroundColor: "#fff",
     borderRadius: 14,

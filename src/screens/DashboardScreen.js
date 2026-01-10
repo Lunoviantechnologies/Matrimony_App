@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator, TouchableWithoutFeedback, Image } from "react-native";
 import NotificationBell from "../components/NotificationBell";
 import { fetchMyProfileApi, fetchUserProfilesApi } from "../api/api";
-import { getSession, clearSession } from "../api/authSession";
+import { getSession, clearSession, withPhotoVersion } from "../api/authSession";
 
 const makeProfileStats = ({ matches }) => [
   { label: "Profile Views", value: "234", icon: "👁️", colors: ["#5b8dff", "#5f6bff"] },
@@ -12,8 +12,6 @@ const makeProfileStats = ({ matches }) => [
 ];
 
 const quickActions = [
-  { name: "Search", icon: "🔍" },
-  { name: "Filters", icon: "🎛️" },
   { name: "Saved", icon: "❤️" },
   { name: "Premium", icon: "⭐" },
 ];
@@ -77,6 +75,13 @@ const DashboardScreen = ({ navigation, route }) => {
   const [newProfiles, setNewProfiles] = useState([]);
   const [matchCount, setMatchCount] = useState("—");
 
+  const getOppositeGender = (p) => {
+    const g = (p?.gender || "").toString().toLowerCase();
+    if (g === "male") return "female";
+    if (g === "female") return "male";
+    return null; // no filter
+  };
+
   useEffect(() => {
     const load = async () => {
       try {
@@ -89,17 +94,21 @@ const DashboardScreen = ({ navigation, route }) => {
         }
         const res = await fetchMyProfileApi(userId);
         setProfile(res.data);
+        const targetGender = getOppositeGender(res.data);
 
         try {
           const profilesRes = await fetchUserProfilesApi();
           const list = Array.isArray(profilesRes?.data) ? profilesRes.data : [];
-          const filtered = list
-            .filter((p) => p?.id && p.id !== userId)
+          const filteredRaw = list.filter((p) => p?.id && p.id !== userId);
+          const genderFiltered = targetGender
+            ? filteredRaw.filter((p) => (p.gender || "").toString().toLowerCase() === targetGender)
+            : filteredRaw;
+          const filtered = genderFiltered
             .sort((a, b) => {
               if (a.createdAt && b.createdAt) return new Date(b.createdAt) - new Date(a.createdAt);
               return (b.id || 0) - (a.id || 0);
             })
-            .slice(0, 3)
+            .slice(0, 6)
             .map((p) => ({
               name: `${p.firstName || ""} ${p.lastName || ""}`.trim() || "New Member",
               age: p.age || "—",
@@ -124,7 +133,11 @@ const DashboardScreen = ({ navigation, route }) => {
           const profilesRes = await fetchUserProfilesApi();
           const list = Array.isArray(profilesRes?.data) ? profilesRes.data : [];
           const others = list.filter((p) => p?.id && p.id !== userId);
-          setMatchCount(others.length.toString());
+          const targetGender = getOppositeGender(res.data);
+          const genderFiltered = targetGender
+            ? others.filter((p) => (p.gender || "").toString().toLowerCase() === targetGender)
+            : others;
+          setMatchCount(genderFiltered.length.toString());
         } catch {
           setMatchCount("—");
         }
@@ -148,6 +161,7 @@ const DashboardScreen = ({ navigation, route }) => {
     profile?.image ||
     profile?.avatar ||
     null;
+  const photoWithVersion = withPhotoVersion(photo);
   const completion = computeProfileCompletion(profile);
 
   const handleNotificationNavigate = (type, targetId) => {
@@ -225,8 +239,8 @@ const DashboardScreen = ({ navigation, route }) => {
         <View style={styles.heroHeader}>
           <View style={styles.heroProfile}>
             <View style={styles.heroAvatar}>
-              {photo ? (
-                <Image source={{ uri: photo }} style={styles.heroAvatarImg} />
+              {photoWithVersion ? (
+                <Image source={{ uri: photoWithVersion }} style={styles.heroAvatarImg} />
               ) : (
                 <Text style={styles.heroAvatarText}>💑</Text>
               )}
@@ -296,9 +310,14 @@ const DashboardScreen = ({ navigation, route }) => {
               <Text style={styles.sectionLink}>View All</Text>
             </TouchableOpacity>
           </View>
-          <View style={styles.matchList}>
-            {(newProfiles.length ? newProfiles : recentMatches).map((match) => (
-              <View key={match.name} style={styles.matchCard}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.matchScroll}
+            pagingEnabled
+          >
+            {(newProfiles.length ? newProfiles : recentMatches).map((match, idx) => (
+              <View key={`${match.name}-${idx}`} style={styles.matchCard}>
                 <View style={styles.matchTopRow}>
                   <View style={styles.matchPerson}>
                     <View>
@@ -332,7 +351,14 @@ const DashboardScreen = ({ navigation, route }) => {
                 </View>
               </View>
             ))}
-          </View>
+          </ScrollView>
+          {(newProfiles.length ? newProfiles : recentMatches).length > 1 && (
+            <View style={styles.dotsRow}>
+              {(newProfiles.length ? newProfiles : recentMatches).map((_, i) => (
+                <View key={i} style={styles.dot} />
+              ))}
+            </View>
+          )}
         </View>
 
         <View style={styles.statsGrid}>
@@ -528,8 +554,9 @@ const styles = StyleSheet.create({
   premiumButton: { marginTop: 10, backgroundColor: "#fff", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12 },
   premiumButtonText: { color: "#d76400", fontWeight: "800" },
   premiumCrown: { fontSize: 40 },
-  matchList: {},
+  matchScroll: { paddingVertical: 4, paddingHorizontal: 2, gap: 10 },
   matchCard: {
+    width: 260,
     backgroundColor: "#fff",
     borderRadius: 18,
     padding: 14,
@@ -538,7 +565,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
-    marginBottom: 10,
+    marginRight: 10,
   },
   matchTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 },
   matchPerson: { flexDirection: "row" },
@@ -556,6 +583,8 @@ const styles = StyleSheet.create({
   secondaryButton: { flex: 1, backgroundColor: "#f2f2f6", paddingVertical: 12, borderRadius: 12, alignItems: "center" },
   secondaryButtonSpacer: { marginLeft: 10 },
   secondaryButtonText: { color: "#1f1f39", fontWeight: "800" },
+  dotsRow: { flexDirection: "row", justifyContent: "center", alignItems: "center", marginTop: 8, gap: 6 },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#d1d5db" },
   bottomNav: {
     position: "absolute",
     bottom: 0,

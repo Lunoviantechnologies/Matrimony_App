@@ -14,7 +14,7 @@ import {
   Image,
 } from "react-native";
 import { fetchMyProfileApi, updateProfileApi, uploadPhotoApi } from "../api/api";
-import { getSession } from "../api/authSession";
+import { getSession, setPhotoVersion, withPhotoVersion } from "../api/authSession";
 
 const fields = [
   { key: "firstName", label: "First Name" },
@@ -62,7 +62,7 @@ const EditProfile = ({ navigation }) => {
           profileData?.avatar ||
           null;
         if (remotePhoto) {
-          setPhoto(remotePhoto);
+          setPhoto(withPhotoVersion(remotePhoto));
         }
       } catch (e) {
         setError("Failed to load profile.");
@@ -131,7 +131,10 @@ const EditProfile = ({ navigation }) => {
               payload.avatar ||
               (payload.fileName ? `/profile-photos/${payload.fileName}` : null) ||
               uri;
-            setPhoto(newUrl);
+            const version = await setPhotoVersion(Date.now());
+            const cacheBusted = newUrl ? `${newUrl}${newUrl.includes("?") ? "&" : "?"}pv=${version}` : newUrl;
+            setPhoto(cacheBusted);
+            setForm((prev) => ({ ...prev, updatePhoto: cacheBusted }));
             Alert.alert("Success", "Photo uploaded successfully.");
           } catch (e) {
             Alert.alert("Upload failed", e?.response?.data || "Please try again.");
@@ -158,10 +161,26 @@ const EditProfile = ({ navigation }) => {
         return;
       }
       setSaving(true);
-      const payload = {
-        ...form,
-        age: form.age ? parseInt(form.age, 10) || 0 : 0,
-      };
+      // Only send whitelisted editable fields to avoid backend parse issues on dates/metadata.
+      const allowedKeys = [
+        "firstName",
+        "lastName",
+        "age",
+        "maritalStatus",
+        "height",
+        "highestEducation",
+        "occupation",
+        "sector",
+        "city",
+        "country",
+      ];
+      const payload = allowedKeys.reduce((acc, key) => {
+        if (form[key] !== undefined && form[key] !== null) {
+          acc[key] = key === "age" ? (form.age ? parseInt(form.age, 10) || 0 : 0) : form[key];
+        }
+        return acc;
+      }, {});
+
       await updateProfileApi(userId, payload);
       Alert.alert("Saved", "Profile updated successfully.", [
         { text: "OK", onPress: () => navigation.navigate("ProfileView") },

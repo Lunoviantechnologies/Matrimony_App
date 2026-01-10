@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { SafeAreaView, View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Image, Modal } from "react-native";
 import { fetchMyProfileApi } from "../api/api";
-import { getSession } from "../api/authSession";
+import { getSession, withPhotoVersion } from "../api/authSession";
 
 const ProfileView = ({ navigation }) => {
   const [profile, setProfile] = useState(null);
@@ -39,12 +39,13 @@ const ProfileView = ({ navigation }) => {
         education: profile.highestEducation || "—",
         height: profile.height || "—",
         maritalStatus: profile.maritalStatus || "—",
-        photo:
+        photo: withPhotoVersion(
           profile.updatePhoto ||
           profile.photoUrl ||
           profile.image ||
           profile.avatar ||
-          null,
+          null
+        ),
       }
     : null;
 

@@ -15,8 +15,8 @@ const NearmeScreen = () => {
       setLoading(true);
       try {
         const [all, mine] = await Promise.all([
-          axiosInstance.get("/profiles/Allprofiles"),
-          axiosInstance.get(`/profiles/myprofiles/${userId}`),
+          axiosInstance.get("/api/profiles/Allprofiles"),
+          axiosInstance.get(`/api/profiles/myprofiles/${userId}`),
         ]);
         setProfiles(Array.isArray(all.data) ? all.data : []);
         setMe(mine.data);

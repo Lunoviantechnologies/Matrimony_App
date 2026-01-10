@@ -10,58 +10,44 @@ const PrivacyPolicyScreen = () => {
 
         <View style={styles.section}>
           <Text style={styles.heading}>1. Information We Collect</Text>
-          <Text style={styles.text}>
-            We collect account details (name, email, phone), profile information, device data, and usage analytics to
-            provide and improve our services.
-          </Text>
+          <Text style={styles.text}>Name, age, gender</Text>
+          <Text style={styles.text}>Photos, marital details</Text>
+          <Text style={styles.text}>Contact information</Text>
+          <Text style={styles.text}>Horoscope and preferences</Text>
+          <Text style={styles.text}>Device & usage data</Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.heading}>2. How We Use Your Data</Text>
-          <Text style={styles.text}>
-            To operate the app, personalize matches, communicate updates, and ensure safety. We do not sell your data.
-          </Text>
+          <Text style={styles.heading}>2. Data Usage</Text>
+          <Text style={styles.text}>Provide matchmaking services</Text>
+          <Text style={styles.text}>Improve app performance</Text>
+          <Text style={styles.text}>Prevent fraud and misuse</Text>
+          <Text style={styles.text}>Comply with legal obligations</Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.heading}>3. Sharing</Text>
-          <Text style={styles.text}>
-            We may share data with trusted vendors for hosting, analytics, and notifications. We do not share your
-            personal contact details with other members without consent.
-          </Text>
+          <Text style={styles.heading}>3. Data Sharing</Text>
+          <Text style={styles.text}>If required by law or court order</Text>
+          <Text style={styles.text}>To prevent fraud or illegal activity</Text>
+          <Text style={styles.text}>With government or law enforcement agencies</Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.heading}>4. Security</Text>
-          <Text style={styles.text}>We use reasonable safeguards, but no method is 100% secure. Protect your account credentials.</Text>
+          <Text style={styles.heading}>4. Data Storage</Text>
+          <Text style={styles.text}>Data may be stored on cloud servers inside or outside India.</Text>
+          <Text style={styles.text}>We use reasonable security measures but cannot guarantee 100% security.</Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.heading}>5. Your Choices</Text>
-          <Text style={styles.text}>
-            You can update or delete your profile. You may opt-out of marketing communications. Some data may be retained
-            as required by law or for legitimate interests.
-          </Text>
+          <Text style={styles.heading}>5. User Responsibility</Text>
+          <Text style={styles.text}>Users must not share sensitive data unnecessarily.</Text>
+          <Text style={styles.text}>Do not upload others’ photos without consent.</Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.heading}>6. Cookies & Tracking</Text>
-          <Text style={styles.text}>We may use cookies or similar technologies for analytics and session management.</Text>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.heading}>7. Children</Text>
-          <Text style={styles.text}>The service is not intended for minors. Do not register if you are under the legal age.</Text>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.heading}>8. Changes</Text>
-          <Text style={styles.text}>We may update this policy. Continued use after changes means you accept the updates.</Text>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.heading}>9. Contact</Text>
-          <Text style={styles.text}>For questions, contact support@vivahjeevan.com.</Text>
+          <Text style={styles.heading}>6. Account Deletion</Text>
+          <Text style={styles.text}>Users may request account deletion.</Text>
+          <Text style={styles.text}>Backup data may be retained for legal and compliance purposes.</Text>
         </View>
       </ScrollView>
     </SafeAreaView>

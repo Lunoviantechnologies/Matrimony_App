@@ -6,6 +6,7 @@ import { Text } from "react-native";
 import LoginScreen from "../screens/LoginScreen";
 import RegisterScreen from "../screens/RegisterScreen";
 import DashboardScreen from "../screens/DashboardScreen";
+import SearchScreen from "../screens/SearchScreen";
 import GenericScreen from "../screens/GenericScreen";
 import NotificationsScreen from "../screens/NotificationsScreen";
 import SavedProfilesScreen from "../screens/SavedProfilesScreen";
@@ -14,6 +15,8 @@ import FAQScreen from "../screens/FAQScreen";
 import ChatWindowScreen from "../screens/ChatWindowScreen";
 import TermsScreen from "../screens/TermsScreen";
 import PrivacyPolicyScreen from "../screens/PrivacyPolicyScreen";
+import CommunityGuidelinesScreen from "../screens/CommunityGuidelinesScreen";
+import RefundPolicyScreen from "../screens/RefundPolicyScreen";
 import ForgotPasswordScreen from "../screens/ForgotPasswordScreen";
 import ProfileView from "../screens/ProfileView";
 import EditProfile from "../screens/EditProfile";
@@ -68,7 +71,7 @@ const MainTabs = () => (
     })}
   >
     <Tab.Screen name="Home" component={DashboardScreen} />
-    <Tab.Screen name="Search" component={GenericScreen} initialParams={{ title: "Search" }} />
+    <Tab.Screen name="Search" component={SearchScreen} />
     <Tab.Screen name="Matches" component={MatchesScreen} />
     <Tab.Screen name="Chat" component={ChatScreen} />
     <Tab.Screen name="Profile" component={ProfileView} />
@@ -97,6 +100,8 @@ const routes = [
   { name: "ChatWindow", component: ChatWindowScreen },
   { name: "Terms", component: TermsScreen, options: { title: "Terms & Conditions" } },
   { name: "PrivacyPolicy", component: PrivacyPolicyScreen, options: { title: "Privacy Policy" } },
+  { name: "CommunityGuidelines", component: CommunityGuidelinesScreen, options: { title: "Community Guidelines" } },
+  { name: "RefundPolicy", component: RefundPolicyScreen, options: { title: "Refund & Cancellation" } },
   { name: "ForgotPassword", component: ForgotPasswordScreen, options: { title: "Forgot Password" } },
 ];
 

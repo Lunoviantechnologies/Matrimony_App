@@ -48,3 +48,11 @@ export const sendRegistrationOtpApi = (email) =>
 // POST /api/auth/register/verify-otp -> verifies email OTP
 export const verifyRegistrationOtpApi = (email, otp) =>
   axiosInstance.post("/api/auth/register/verify-otp", { email, otp });
+
+// NOTIFICATIONS
+export const fetchNotificationsApi = (userId) =>
+  axiosInstance.get(`/api/notifications/GetAll?userId=${userId}`);
+export const markNotificationReadApi = (id) =>
+  axiosInstance.post(`/api/notifications/read/${id}`);
+export const markAllNotificationsReadApi = (userId) =>
+  axiosInstance.post(`/api/notifications/mark-all-read?userId=${userId}`);

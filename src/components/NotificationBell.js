@@ -1,7 +1,11 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Modal, FlatList, ActivityIndicator, Alert } from "react-native";
-import axiosInstance from "../api/axiosInstance";
 import { getSession } from "../api/authSession";
+import {
+  fetchNotificationsApi,
+  markAllNotificationsReadApi,
+  markNotificationReadApi,
+} from "../api/api";
 
 const NotificationBell = ({ onNavigate }) => {
   const { userId, token } = getSession();
@@ -14,7 +18,7 @@ const NotificationBell = ({ onNavigate }) => {
     if (!userId) return;
     setLoading(true);
     try {
-      const res = await axiosInstance.get(`/notifications/GetAll?userId=${userId}`);
+      const res = await fetchNotificationsApi(userId);
       const data = Array.isArray(res.data) ? res.data : res.data?.content || [];
       const normalized = data.map((n) => ({ ...n, read: Boolean(n.read) }));
       setNotifications(normalized);
@@ -32,7 +36,7 @@ const NotificationBell = ({ onNavigate }) => {
 
   const markAsRead = async (id) => {
     try {
-      await axiosInstance.post(`/notifications/read/${id}`);
+      await markNotificationReadApi(id);
       setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
     } catch (err) {
       console.log("mark read error:", err?.response?.data || err?.message);
@@ -41,7 +45,7 @@ const NotificationBell = ({ onNavigate }) => {
 
   const markAllAsRead = async () => {
     try {
-      await axiosInstance.post(`/notifications/mark-all-read?userId=${userId}`);
+      await markAllNotificationsReadApi(userId);
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     } catch (err) {
       console.log("mark all read error:", err?.response?.data || err?.message);
@@ -76,7 +80,7 @@ const NotificationBell = ({ onNavigate }) => {
         )}
       </TouchableOpacity>
 
-      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
+      <Modal visible={open} transparent animationType="none" onRequestClose={() => setOpen(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
@@ -125,14 +129,18 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "flex-end",
+    justifyContent: "flex-start",
+    alignItems: "flex-end",
+    paddingTop: 40,
   },
   modalCard: {
     backgroundColor: "#fff",
     borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    borderBottomLeftRadius: 16,
     padding: 16,
-    maxHeight: "70%",
+    maxHeight: "90%",
+    width: "86%",
+    marginRight: 8,
   },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   modalTitle: { fontSize: 18, fontWeight: "800", color: "#1f1f39" },

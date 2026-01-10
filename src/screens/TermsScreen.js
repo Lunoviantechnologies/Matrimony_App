@@ -9,64 +9,78 @@ const TermsScreen = () => {
         <Text style={styles.updated}>Last updated: Jan 2026</Text>
 
         <View style={styles.section}>
-          <Text style={styles.heading}>1. Acceptance</Text>
+          <Text style={styles.heading}>Last Updated</Text>
+          <Text style={styles.text}>10/01/2026</Text>
           <Text style={styles.text}>
-            By using VivahJeevan, you agree to these terms. Please read them carefully before continuing.
+            Vivah Jeevan (“Platform”, “App”, “We”, “Us”) is operated by Vivah Jeevan / [Your Company Legal Name], India.
+          </Text>
+          <Text style={styles.text}>
+            By registering, accessing, or using Vivah Jeevan, you unconditionally agree to these Terms. If you do not agree,
+            you must immediately stop using the Platform.
           </Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.heading}>2. Eligibility</Text>
-          <Text style={styles.text}>You must be of legal age to register and provide accurate, truthful information.</Text>
+          <Text style={styles.heading}>1. Eligibility</Text>
+          <Text style={styles.text}>Users must be 18 years or older and legally eligible for marriage under Indian law.</Text>
+          <Text style={styles.text}>Married persons, persons in live-in relationships, or those hiding marital status are strictly prohibited.</Text>
+          <Text style={styles.text}>Vivah Jeevan reserves the absolute right to reject or terminate any profile without explanation.</Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.heading}>3. Account & Security</Text>
-          <Text style={styles.text}>
-            Keep your credentials safe. You are responsible for all activity on your account.
-          </Text>
+          <Text style={styles.heading}>2. Account Registration & User Responsibility</Text>
+          <Text style={styles.text}>You are solely responsible for: accuracy of profile information; photos, biodata, income, education, horoscope, marital status; and all actions done through your account.</Text>
+          <Text style={styles.text}>One individual = one account only. Fake profiles, impersonation, or misleading data will result in permanent termination.</Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.heading}>4. Content & Conduct</Text>
-          <Text style={styles.text}>
-            Do not post harmful, abusive, or unlawful content. Respect other members and comply with community guidelines.
-          </Text>
+          <Text style={styles.heading}>3. Platform Role (Important Disclaimer)</Text>
+          <Text style={styles.text}>Vivah Jeevan is ONLY a matchmaking technology platform.</Text>
+          <Text style={styles.text}>We do NOT guarantee marriage or compatibility; do NOT conduct background or police verification; do NOT mediate disputes.</Text>
+          <Text style={styles.text}>Any interaction, meeting, engagement, marriage, or financial transaction is entirely at the user’s own risk.</Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.heading}>5. Privacy</Text>
-          <Text style={styles.text}>
-            We process your data as described in our Privacy Policy. Do not share sensitive information publicly.
-          </Text>
+          <Text style={styles.heading}>4. Communication & Meetings</Text>
+          <Text style={styles.text}>Users must exercise personal judgment and caution. Vivah Jeevan is not responsible for emotional harm, financial fraud, physical harm, or false promises. Meet only in public places.</Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.heading}>6. Subscriptions & Payments</Text>
-          <Text style={styles.text}>
-            Premium features may require paid plans. All fees are non-refundable except where required by law.
-          </Text>
+          <Text style={styles.heading}>5. Strictly Prohibited Activities</Text>
+          <Text style={styles.text}>No asking for/sending money, gifts, loans, crypto, or investments.</Text>
+          <Text style={styles.text}>No dowry demands or discussions.</Text>
+          <Text style={styles.text}>No obscene, abusive, sexual, or inappropriate language.</Text>
+          <Text style={styles.text}>No dating/casual relationships/adultery via the app.</Text>
+          <Text style={styles.text}>No harassment, stalking, threats, or blackmail.</Text>
+          <Text style={styles.text}>No misuse of photos, screenshots, or personal data.</Text>
+          <Text style={styles.text}>No promotion of hatred, violence, or illegal activities.</Text>
+          <Text style={styles.text}>Violation = Immediate permanent ban + possible legal action.</Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.heading}>7. Liability</Text>
-          <Text style={styles.text}>
-            VivahJeevan is provided “as is.” We are not liable for user interactions; please exercise caution.
-          </Text>
+          <Text style={styles.heading}>6. Account Suspension & Termination</Text>
+          <Text style={styles.text}>Vivah Jeevan may suspend/delete accounts without notice, remove content at discretion, and block re-registration permanently. No compensation or refund is payable.</Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.heading}>8. Termination</Text>
-          <Text style={styles.text}>
-            We may suspend or terminate accounts for violations. You may delete your account at any time.
-          </Text>
+          <Text style={styles.heading}>7. Paid Services</Text>
+          <Text style={styles.text}>All subscriptions/premium services are non-refundable, non-transferable, non-cancellable.</Text>
+          <Text style={styles.text}>No refund for: no matches, account suspension, dissatisfaction, or marriage not happening.</Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.heading}>9. Changes</Text>
-          <Text style={styles.text}>
-            Terms may change periodically. Continued use after updates means you accept the revised terms.
-          </Text>
+          <Text style={styles.heading}>8. Limitation of Liability</Text>
+          <Text style={styles.text}>To the maximum extent allowed by law, Vivah Jeevan is NOT liable for emotional distress, financial loss, physical injury, or marriage disputes/divorce. Maximum liability, if any, shall not exceed ₹1,000.</Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.heading}>9. Indemnity</Text>
+          <Text style={styles.text}>You agree to indemnify Vivah Jeevan and its team against legal notices, claims, losses, and damages arising from your actions or violations.</Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.heading}>10. Governing Law</Text>
+          <Text style={styles.text}>These Terms are governed by Indian Law. Jurisdiction: Courts of [Hyderabad, Telangana].</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
