@@ -1,5 +1,6 @@
 import axios from "axios";
 import { BASE_URL } from "@env";
+import { getSession } from "./authSession";
 
 const axiosInstance = axios.create({
   baseURL: BASE_URL,
@@ -7,6 +8,14 @@ const axiosInstance = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+});
+
+axiosInstance.interceptors.request.use((config) => {
+  const { token } = getSession();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 export default axiosInstance;
