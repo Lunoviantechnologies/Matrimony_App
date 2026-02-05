@@ -3,7 +3,7 @@ import { SafeAreaView, View, Text, StyleSheet, TouchableOpacity, ScrollView, Act
 import { fetchMyProfileApi } from "../api/api";
 import { getSession, withPhotoVersion } from "../api/authSession";
 
-const ProfileView = ({ navigation }) => {
+const ProfileView = ({ navigation, route }) => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -13,12 +13,13 @@ const ProfileView = ({ navigation }) => {
     const load = async () => {
       try {
         const { userId } = getSession();
-        if (!userId) {
-          setError("Please login again to view your profile.");
+        const targetId = route?.params?.profileId || userId;
+        if (!targetId) {
+          setError("Please login again to view profile.");
           setLoading(false);
           return;
         }
-        const res = await fetchMyProfileApi(userId);
+        const res = await fetchMyProfileApi(targetId);
         setProfile(res.data);
       } catch (e) {
         setError("Failed to load profile. Please try again.");
@@ -27,7 +28,7 @@ const ProfileView = ({ navigation }) => {
       }
     };
     load();
-  }, []);
+  }, [route?.params?.profileId]);
 
   const user = profile
     ? {
@@ -48,6 +49,9 @@ const ProfileView = ({ navigation }) => {
         ),
       }
     : null;
+
+  const session = getSession();
+  const isOwnProfile = !route?.params?.profileId || route?.params?.profileId === session?.userId;
 
   if (loading) {
     return (
@@ -76,92 +80,159 @@ const ProfileView = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.root}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.headerRow}>
-          <View>
-            <Text style={styles.greeting}>Profile</Text>
-            <Text style={styles.subline}>Manage and share your details</Text>
-          </View>
-          <TouchableOpacity style={styles.editBtn} onPress={() => navigation?.navigate?.("EditProfile")}>
-            <Text style={styles.editBtnText}>Edit</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View style={styles.avatarRow}>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => user?.photo && setPhotoModalVisible(true)}
-                style={styles.avatarPressable}
-              >
-                {user?.photo ? (
-                  <Image source={{ uri: user.photo }} style={styles.avatarImage} />
-                ) : (
-                  <View style={styles.avatarCircle}>
-                    <Text style={styles.avatarEmoji}>💑</Text>
-                  </View>
-                )}
+        {isOwnProfile ? (
+          <>
+            <View style={styles.headerRow}>
+              <View>
+                <Text style={styles.greeting}>Profile</Text>
+                <Text style={styles.subline}>Manage and share your details</Text>
+              </View>
+              <TouchableOpacity style={styles.editBtn} onPress={() => navigation?.navigate?.("EditProfile")}>
+                <Text style={styles.editBtnText}>Edit</Text>
               </TouchableOpacity>
-              <View style={{ marginLeft: 12, flex: 1 }}>
-                <Text style={styles.name}>{user?.name}</Text>
-                <Text style={styles.id}>ID: {user?.id}</Text>
-                <Text style={styles.meta}>{user?.profession}</Text>
+            </View>
+
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <View style={styles.avatarRow}>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => user?.photo && setPhotoModalVisible(true)}
+                    style={styles.avatarPressable}
+                  >
+                    {user?.photo ? (
+                      <Image source={{ uri: user.photo }} style={styles.avatarImage} />
+                    ) : (
+                      <View style={styles.avatarCircle}>
+                        <Text style={styles.avatarEmoji}>💑</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                  <View style={{ marginLeft: 12, flex: 1 }}>
+                    <Text style={styles.name}>{user?.name}</Text>
+                    <Text style={styles.id}>ID: {user?.id}</Text>
+                    <Text style={styles.meta}>{user?.profession}</Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.infoGrid}>
+                <View style={styles.infoItem}>
+                  <Text style={styles.pillLabel}>Age</Text>
+                  <Text style={styles.pillValue}>{user?.age}</Text>
+                </View>
+                <View style={styles.infoItem}>
+                  <Text style={styles.pillLabel}>Height</Text>
+                  <Text style={styles.pillValue}>{user?.height}</Text>
+                </View>
+                <View style={styles.infoItem}>
+                  <Text style={styles.pillLabel}>Location</Text>
+                  <Text style={styles.pillValue}>{user?.location}</Text>
+                </View>
+                <View style={styles.infoItem}>
+                  <Text style={styles.pillLabel}>Status</Text>
+                  <Text style={styles.pillValue}>{user?.maritalStatus}</Text>
+                </View>
               </View>
             </View>
-          </View>
 
-          <View style={styles.infoGrid}>
-            <View style={styles.infoItem}>
-              <Text style={styles.pillLabel}>Age</Text>
-              <Text style={styles.pillValue}>{user?.age}</Text>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>About</Text>
+              <View style={styles.sectionCard}>
+                <View style={styles.sectionRow}>
+                  <Text style={styles.sectionLabel}>Education</Text>
+                  <Text style={styles.sectionValue}>{user?.education}</Text>
+                </View>
+                <View style={styles.sectionRow}>
+                  <Text style={styles.sectionLabel}>Profession</Text>
+                  <Text style={styles.sectionValue}>{user?.profession}</Text>
+                </View>
+                <View style={styles.sectionRow}>
+                  <Text style={styles.sectionLabel}>Location</Text>
+                  <Text style={styles.sectionValue}>{user?.location}</Text>
+                </View>
+              </View>
             </View>
-            <View style={styles.infoItem}>
-              <Text style={styles.pillLabel}>Height</Text>
-              <Text style={styles.pillValue}>{user?.height}</Text>
-            </View>
-            <View style={styles.infoItem}>
-              <Text style={styles.pillLabel}>Location</Text>
-              <Text style={styles.pillValue}>{user?.location}</Text>
-            </View>
-            <View style={styles.infoItem}>
-              <Text style={styles.pillLabel}>Status</Text>
-              <Text style={styles.pillValue}>{user?.maritalStatus}</Text>
-            </View>
-          </View>
-        </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>About</Text>
-          <View style={styles.sectionCard}>
-            <View style={styles.sectionRow}>
-              <Text style={styles.sectionLabel}>Education</Text>
-              <Text style={styles.sectionValue}>{user?.education}</Text>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Actions</Text>
+              <View style={styles.actionRow}>
+                <TouchableOpacity style={[styles.actionBtn, styles.actionPrimary]} onPress={() => navigation?.navigate?.("PremiumSubscription")}>
+                  <Text style={styles.actionPrimaryText}>Upgrade</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.actionBtn, styles.actionGhost]} onPress={() => navigation?.navigate?.("EditProfile")}>
+                  <Text style={styles.actionText}>Edit Profile</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.actionBtn, styles.actionGhost]} onPress={() => navigation?.navigate?.("Settings")}>
+                  <Text style={styles.actionText}>Settings</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-            <View style={styles.sectionRow}>
-              <Text style={styles.sectionLabel}>Profession</Text>
-              <Text style={styles.sectionValue}>{user?.profession}</Text>
+          </>
+        ) : (
+          <View style={styles.card}>
+            <Text style={styles.greeting}>Profile Photo</Text>
+            <Text style={styles.subline}>You are viewing a member</Text>
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => user?.photo && setPhotoModalVisible(true)}
+              style={[styles.viewerImageWrap]}
+            >
+              {user?.photo ? (
+                <Image source={{ uri: user.photo }} style={styles.viewerImage} />
+              ) : (
+                <View style={[styles.viewerImage, styles.avatarCircle, { alignItems: "center", justifyContent: "center" }]}>
+                  <Text style={styles.avatarEmoji}>💑</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <View style={{ marginTop: 12 }}>
+              <Text style={styles.name}>{user?.name}</Text>
+              <Text style={styles.meta}>{[user?.age && `${user.age} yrs`, user?.location].filter(Boolean).join(" • ") || "—"}</Text>
+              <Text style={styles.meta}>{user?.profession}</Text>
             </View>
-            <View style={styles.sectionRow}>
-              <Text style={styles.sectionLabel}>Location</Text>
-              <Text style={styles.sectionValue}>{user?.location}</Text>
-            </View>
-          </View>
-        </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Actions</Text>
-          <View style={styles.actionRow}>
-            <TouchableOpacity style={[styles.actionBtn, styles.actionPrimary]} onPress={() => navigation?.navigate?.("PremiumSubscription")}>
-              <Text style={styles.actionPrimaryText}>Upgrade</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.actionBtn, styles.actionGhost]} onPress={() => navigation?.navigate?.("EditProfile")}>
-              <Text style={styles.actionText}>Edit Profile</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.actionBtn, styles.actionGhost]} onPress={() => navigation?.navigate?.("Settings")}>
-              <Text style={styles.actionText}>Settings</Text>
-            </TouchableOpacity>
+            <View style={styles.viewerInfo}>
+              {[
+                { label: "Gender", value: profile?.gender },
+                { label: "Height", value: profile?.height },
+                { label: "Religion / Community", value: [profile?.religion, profile?.caste].filter(Boolean).join(" • ") },
+                { label: "Mother Tongue", value: profile?.motherTongue },
+                { label: "Marital Status", value: profile?.maritalStatus },
+                { label: "Education", value: profile?.highestEducation },
+                { label: "Occupation", value: profile?.occupation },
+                { label: "Company", value: profile?.companyName },
+                { label: "Income", value: profile?.annualIncome },
+                { label: "Location", value: user?.location },
+                { label: "Phone", value: profile?.mobileNumber },
+                { label: "Email", value: profile?.emailId },
+              ]
+                .filter((row) => row.value)
+                .map((row) => (
+                  <View key={row.label} style={styles.viewerRow}>
+                    <Text style={styles.viewerLabel}>{row.label}</Text>
+                    <Text style={styles.viewerValue}>{row.value}</Text>
+                  </View>
+                ))}
+              {(!profile ||
+                ![
+                  profile?.gender,
+                  profile?.height,
+                  profile?.religion,
+                  profile?.caste,
+                  profile?.motherTongue,
+                  profile?.maritalStatus,
+                  profile?.highestEducation,
+                  profile?.occupation,
+                  profile?.companyName,
+                  profile?.annualIncome,
+                  user?.location,
+                  profile?.mobileNumber,
+                  profile?.emailId,
+                ].some(Boolean)) && <Text style={styles.viewerValue}>No additional details available.</Text>}
+            </View>
           </View>
-        </View>
+        )}
       </ScrollView>
 
       <Modal
@@ -295,6 +366,8 @@ const styles = StyleSheet.create({
   },
   modalContent: { flex: 1, alignItems: "center", justifyContent: "center" },
   modalImage: { width: "90%", height: "70%" },
+  viewerImageWrap: { marginTop: 12, borderRadius: 14, overflow: "hidden", alignItems: "center", justifyContent: "center" },
+  viewerImage: { width: "100%", height: 260, borderRadius: 14 },
   closeBtn: {
     position: "absolute",
     top: 20,
@@ -306,6 +379,10 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   closeBtnText: { color: "#fff", fontWeight: "800", fontSize: 16 },
+  viewerInfo: { marginTop: 12, gap: 8 },
+  viewerRow: { flexDirection: "row", justifyContent: "space-between", gap: 10 },
+  viewerLabel: { color: "#6b7280", fontWeight: "700" },
+  viewerValue: { color: "#0f172a", fontWeight: "700", flex: 1, textAlign: "right" },
 });
 
 export default ProfileView;

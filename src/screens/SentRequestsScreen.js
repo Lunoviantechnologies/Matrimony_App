@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { SafeAreaView, Text, FlatList, View, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import axiosInstance from "../api/axiosInstance";
 import { getSession } from "../api/authSession";
+import { fetchSentRequestsApi } from "../api/api";
 
 const SentRequestsScreen = () => {
   const { userId } = getSession();
@@ -15,8 +16,8 @@ const SentRequestsScreen = () => {
       setLoading(true);
       try {
         const [sentRes, allProfiles] = await Promise.all([
-          axiosInstance.get(`/friends/sent/${userId}`),
-          axiosInstance.get("/profiles/Allprofiles"),
+          fetchSentRequestsApi(userId),
+          axiosInstance.get("/api/profiles/Allprofiles"),
         ]);
         setSent(sentRes.data || []);
         setProfiles(Array.isArray(allProfiles.data) ? allProfiles.data : []);
@@ -31,7 +32,7 @@ const SentRequestsScreen = () => {
 
   const handleCancel = async (requestId) => {
     try {
-      await axiosInstance.delete(`/friends/sent/delete/${requestId}`);
+      await axiosInstance.delete(`/api/friends/sent/delete/${requestId}`);
       setSent((prev) => prev.filter((r) => r.requestId !== requestId));
     } catch (e) {
       console.log("cancel error:", e?.response?.data || e?.message);

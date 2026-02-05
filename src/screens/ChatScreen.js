@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { SafeAreaView, View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import axiosInstance from "../api/axiosInstance";
 import { getSession } from "../api/authSession";
+import { useRoute } from "@react-navigation/native";
+import { fetchChatConversationApi, sendChatMessageApi } from "../api/api";
 
 // Note: This is a simple REST-based chat viewer. Sending is disabled because
 // the backend chat send endpoint is not confirmed for REST. It shows messages
@@ -9,11 +11,14 @@ import { getSession } from "../api/authSession";
 
 const ChatScreen = () => {
   const { userId } = getSession();
+  const route = useRoute();
   const [contacts, setContacts] = useState([]);
   const [profiles, setProfiles] = useState([]);
   const [selected, setSelected] = useState(null);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [draft, setDraft] = useState("");
 
   useEffect(() => {
     const load = async () => {
@@ -21,17 +26,22 @@ const ChatScreen = () => {
       setLoading(true);
       try {
         const [recvAcc, sentAcc, allProfiles] = await Promise.all([
-          axiosInstance.get(`/friends/accepted/received/${userId}`),
-          axiosInstance.get(`/friends/accepted/sent/${userId}`),
-          axiosInstance.get("/profiles/Allprofiles"),
+          axiosInstance.get(`/api/friends/accepted/received/${userId}`),
+          axiosInstance.get(`/api/friends/accepted/sent/${userId}`),
+          axiosInstance.get("/api/profiles/Allprofiles"),
         ]);
         const merged = [...(recvAcc.data || []), ...(sentAcc.data || [])];
         setContacts(merged);
         setProfiles(Array.isArray(allProfiles.data) ? allProfiles.data : []);
         if (merged.length) {
-          const first = merged[0];
-          const otherId = Number(first.senderId) === Number(userId) ? first.receiverId : first.senderId;
-          setSelected(otherId);
+          const targetId = route?.params?.selectedId;
+          if (targetId) {
+            setSelected(targetId);
+          } else {
+            const first = merged[0];
+            const otherId = Number(first.senderId) === Number(userId) ? first.receiverId : first.senderId;
+            setSelected(otherId);
+          }
         }
       } catch (e) {
         console.log("chat contacts load error:", e?.response?.data || e?.message);
@@ -40,13 +50,13 @@ const ChatScreen = () => {
       }
     };
     load();
-  }, [userId]);
+  }, [userId, route?.params?.selectedId]);
 
   useEffect(() => {
     const loadMessages = async () => {
       if (!userId || !selected) return;
       try {
-        const res = await axiosInstance.get(`/chat/conversation/${userId}/${selected}`);
+        const res = await fetchChatConversationApi(userId, selected, 0, 200);
         const list = res.data?.content || res.data || [];
         setMessages(Array.isArray(list) ? list : []);
       } catch (e) {
@@ -55,6 +65,22 @@ const ChatScreen = () => {
     };
     loadMessages();
   }, [userId, selected]);
+
+  const handleSend = async () => {
+    if (!draft.trim() || !selected || !userId) return;
+    try {
+      setSending(true);
+      await sendChatMessageApi(userId, selected, draft.trim());
+      setDraft("");
+      const res = await fetchChatConversationApi(userId, selected, 0, 200);
+      const list = res.data?.content || res.data || [];
+      setMessages(Array.isArray(list) ? list : []);
+    } catch (e) {
+      console.log("send chat error:", e?.response?.data || e?.message);
+    } finally {
+      setSending(false);
+    }
+  };
 
   const renderContact = ({ item }) => {
     const otherId = Number(item.senderId) === Number(userId) ? item.receiverId : item.senderId;
@@ -103,9 +129,14 @@ const ChatScreen = () => {
                   ListEmptyComponent={<Text style={styles.empty}>No messages.</Text>}
                 />
                 <View style={styles.inputRow}>
-                  <TextInput style={styles.input} placeholder="Sending disabled in this build" editable={false} />
-                  <TouchableOpacity style={styles.sendDisabled}>
-                    <Text style={styles.sendText}>Send</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Type a message"
+                    value={draft}
+                    onChangeText={setDraft}
+                  />
+                  <TouchableOpacity style={styles.sendBtn} onPress={handleSend} disabled={sending || !draft.trim()}>
+                    <Text style={styles.sendText}>{sending ? "..." : "Send"}</Text>
                   </TouchableOpacity>
                 </View>
               </>
@@ -136,7 +167,7 @@ const styles = StyleSheet.create({
   empty: { textAlign: "center", color: "#4b4a5f", marginTop: 20 },
   inputRow: { flexDirection: "row", alignItems: "center", padding: 6, borderTopWidth: 1, borderTopColor: "#e6e7f2" },
   input: { flex: 1, backgroundColor: "#fff", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, color: "#999" },
-  sendDisabled: { marginLeft: 8, backgroundColor: "#ccc", paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10 },
+  sendBtn: { marginLeft: 8, backgroundColor: "#1f1f39", paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10 },
   sendText: { color: "#fff", fontWeight: "800" },
 });
 

@@ -9,9 +9,19 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Image,
+  Alert,
 } from "react-native";
+import { useIsFocused } from "@react-navigation/native";
 import { fetchMyProfileApi, fetchUserProfilesApi } from "../api/api";
-import { getSession } from "../api/authSession";
+import { getSession, withPhotoVersion } from "../api/authSession";
+
+const isPremiumActive = (p) => {
+  if (!p) return false;
+  const end = p.premiumEnd ? new Date(p.premiumEnd) : null;
+  const activeFlag = p.premium === true;
+  const notExpired = end ? end > new Date() : true;
+  return activeFlag && notExpired;
+};
 
 const getOppositeGender = (p) => {
   const g = (p?.gender || "").toString().toLowerCase();
@@ -26,6 +36,7 @@ const SearchScreen = ({ navigation, route }) => {
   const [myProfile, setMyProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const isFocused = useIsFocused();
 
   useEffect(() => {
     const load = async () => {
@@ -51,8 +62,10 @@ const SearchScreen = ({ navigation, route }) => {
       }
     };
 
-    load();
-  }, [route?.params?.userId]);
+    if (isFocused) {
+      load();
+    }
+  }, [route?.params?.userId, isFocused]);
 
   const filteredProfiles = useMemo(() => {
     if (!profiles.length || !myProfile) return [];
@@ -84,7 +97,27 @@ const SearchScreen = ({ navigation, route }) => {
 
   const handleViewProfile = (profileId) => {
     if (!profileId) return;
+    if (!isPremiumActive(myProfile)) {
+      Alert.alert("Upgrade to Premium", "Unlock full profile views with a Premium plan.", [
+        { text: "Later", style: "cancel" },
+        { text: "Upgrade", onPress: () => navigation.navigate("PremiumSubscription") },
+      ]);
+      return;
+    }
     navigation.navigate("ProfileView", { profileId });
+  };
+
+  const handleAvatarPress = (profileId) => {
+    if (!isPremiumActive(myProfile)) {
+      Alert.alert("Upgrade to Premium", "Unlock profile photos with a Premium plan.", [
+        { text: "Later", style: "cancel" },
+        { text: "Upgrade", onPress: () => navigation.navigate("PremiumSubscription") },
+      ]);
+      return;
+    }
+    if (profileId) {
+      navigation.navigate("ProfileView", { profileId });
+    }
   };
 
   if (loading) {
@@ -138,13 +171,20 @@ const SearchScreen = ({ navigation, route }) => {
           filteredProfiles.map((p) => (
             <View key={p.id} style={styles.card}>
               <View style={styles.cardTop}>
-                <View style={styles.avatarWrap}>
-                  {p.updatePhoto || p.photoUrl || p.image || p.avatar ? (
-                    <Image source={{ uri: p.updatePhoto || p.photoUrl || p.image || p.avatar }} style={styles.avatar} />
-                  ) : (
-                    <Text style={styles.avatarFallback}>{p.gender?.toString().toLowerCase() === "female" ? "👩" : "🧑"}</Text>
-                  )}
-                </View>
+                <TouchableOpacity activeOpacity={0.9} onPress={() => handleAvatarPress(p.id)}>
+                  <View style={styles.avatarWrap}>
+                    {p.updatePhoto || p.photoUrl || p.image || p.avatar ? (
+                    <Image
+                      source={{ uri: withPhotoVersion(p.updatePhoto || p.photoUrl || p.image || p.avatar) }}
+                      style={styles.avatar}
+                      blurRadius={isPremiumActive(myProfile) ? 0 : 50}
+                    />
+                    ) : (
+                      <Text style={styles.avatarFallback}>{p.gender?.toString().toLowerCase() === "female" ? "👩" : "🧑"}</Text>
+                    )}
+                    {!isPremiumActive(myProfile) && <View style={styles.avatarMask} pointerEvents="none" />}
+                  </View>
+                </TouchableOpacity>
                 <View style={styles.meta}>
                   <Text style={styles.name}>
                     {(p.firstName || "New") + " " + (p.lastName || "Member")}
@@ -206,6 +246,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   avatar: { width: 64, height: 64, borderRadius: 18 },
+  avatarMask: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.55)",
+  },
   avatarFallback: { fontSize: 30 },
   meta: { marginLeft: 12, flex: 1, justifyContent: "center" },
   name: { fontSize: 16, fontWeight: "800", color: "#1f1f39" },

@@ -31,6 +31,7 @@ import RejectedScreen from "../screens/RejectedScreen";
 import NewMatchesScreen from "../screens/NewMatchesScreen";
 import AstroTalkScreen from "../screens/AstroTalkScreen";
 import ChatScreen from "../screens/ChatScreen";
+import AcceptedMatchesScreen from "../screens/AcceptedMatchesScreen";
 
 
 
@@ -87,7 +88,7 @@ const routes = [
   { name: "Requests", component: RequestsScreen },
   { name: "Sent", component: SentRequestsScreen },
   { name: "Rejected", component: RejectedScreen },
-  { name: "Accepted", component: GenericScreen, params: { title: "Accepted Requests" } },
+  { name: "Accepted", component: AcceptedMatchesScreen, params: { title: "Accepted Requests" } },
   { name: "Received", component: GenericScreen, params: { title: "Received Requests" } },
   { name: "ProfileView", component: ProfileView },
   { name: "EditProfile", component: EditProfile },

@@ -38,8 +38,39 @@ export const uploadPhotoApi = (id, formData, config = {}) =>
     ...config,
   });
 
-// GET /plans -> premium plans list
-export const fetchPlansApi = () => axiosInstance.get("/plans");
+// GET /api/plans -> premium plans list (auth required)
+export const fetchPlansApi = () => axiosInstance.get("/api/plans");
+
+// POST /api/payment/create-order -> returns razorpay order payload
+export const createPaymentOrderApi = (data) => axiosInstance.post("/api/payment/create-order", data);
+
+// POST /api/payment/verify -> verifies razorpay payment
+export const verifyPaymentApi = (data) => axiosInstance.post("/api/payment/verify", data);
+
+// GET /api/payment/successful/{profileId}/latest -> latest payment info
+export const fetchLatestPaymentApi = (profileId) =>
+  axiosInstance.get(`/api/payment/successful/${profileId}/latest`);
+
+// GET /api/payment/successful/{profileId} -> payment history
+export const fetchPaymentHistoryApi = (profileId) =>
+  axiosInstance.get(`/api/payment/successful/${profileId}`);
+
+// POST /api/friends/send/{senderId}/{receiverId} -> send interest/friend request
+export const sendFriendRequestApi = (senderId, receiverId) =>
+  axiosInstance.post(`/api/friends/send/${senderId}/${receiverId}`);
+
+// DELETE /api/friends/sent/delete/{requestId} -> cancel sent interest
+export const deleteSentRequestApi = (requestId) =>
+  axiosInstance.delete(`/api/friends/sent/delete/${requestId}`);
+
+// CHAT
+// GET /api/chat/conversation/{senderId}/{receiverId}?page=&size=
+export const fetchChatConversationApi = (senderId, receiverId, page = 0, size = 50) =>
+  axiosInstance.get(`/api/chat/conversation/${senderId}/${receiverId}?page=${page}&size=${size}`);
+
+// POST /api/chat/send/{senderId}/{receiverId}
+export const sendChatMessageApi = (senderId, receiverId, message) =>
+  axiosInstance.post(`/api/chat/send/${senderId}/${receiverId}`, { message });
 
 // POST /api/auth/register/send-otp -> sends verification OTP to email
 export const sendRegistrationOtpApi = (email) =>

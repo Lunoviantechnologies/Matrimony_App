@@ -11,6 +11,8 @@ const MatchesScreen = ({ navigation }) => {
   const requestLinks = [
     { label: "Requests", route: "Requests", icon: "📩" },
     { label: "Sent Requests", route: "Sent", icon: "📤" },
+    { label: "Accepted", route: "Accepted", icon: "✅" },
+    { label: "Rejected", route: "Rejected", icon: "❌" },
   ];
 
   const searchLinks = [

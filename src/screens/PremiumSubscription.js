@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { SafeAreaView, View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert } from "react-native";
-import { fetchPlansApi } from "../api/api";
+import RazorpayCheckout from "react-native-razorpay";
+import { createPaymentOrderApi, fetchPlansApi, verifyPaymentApi } from "../api/api";
+import { getSession } from "../api/authSession";
 
 const PremiumSubscription = ({ navigation }) => {
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [now, setNow] = useState(new Date());
+  const [payingPlanId, setPayingPlanId] = useState(null);
   const faqs = [
     {
       q: "What do I get with Premium?",
@@ -122,9 +125,71 @@ const PremiumSubscription = ({ navigation }) => {
     return { festivalActive, basePrice, discounted, perMonth, countdown: getCountdown(plan) };
   };
 
-  const onChoose = (plan) => {
-    Alert.alert("Plan selected", `${plan.name || plan.planName} (${formatPrice(plan.priceRupees || plan.price)})`);
-    navigation.goBack();
+  const onChoose = async (plan) => {
+    const session = getSession();
+    if (!session?.userId) {
+      Alert.alert("Login required", "Please login again to purchase a plan.");
+      navigation.navigate("Login");
+      return;
+    }
+
+    const planCode = plan.planCode || plan.plan_code || plan.id;
+    if (!planCode) {
+      Alert.alert("Plan error", "Invalid plan code. Please try again.");
+      return;
+    }
+
+    try {
+      setPayingPlanId(planCode);
+
+      // 1) Create order on backend
+      const orderRes = await createPaymentOrderApi({ profileId: session.userId, planCode });
+      const { razorpayOrderId, razorpayKey, amountRupees, currency, paymentRecordId } = orderRes.data || {};
+
+      if (!razorpayOrderId || !razorpayKey) {
+        throw new Error("Missing order details from server");
+      }
+
+      // 2) Open Razorpay checkout
+      const amountPaise = (amountRupees || plan.priceRupees || 0) * 100;
+      const result = await RazorpayCheckout.open({
+        key: razorpayKey,
+        amount: amountPaise,
+        currency: currency || "INR",
+        name: "VivahJeevan",
+        description: plan.name,
+        order_id: razorpayOrderId,
+        prefill: {
+          email: session.email || "",
+          contact: "",
+        },
+        notes: {
+          planCode,
+          paymentRecordId: paymentRecordId?.toString?.() || "",
+        },
+      });
+
+      // 3) Verify on backend
+      const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = result;
+      await verifyPaymentApi({
+        razorpay_payment_id,
+        razorpay_order_id,
+        razorpay_signature,
+      });
+
+      Alert.alert("Payment successful", "Your premium plan is activated.");
+      navigation.goBack();
+    } catch (err) {
+      const isCancelled = err?.description?.includes("Payment cancelled");
+      if (isCancelled) {
+        Alert.alert("Payment cancelled", "No charges were made.");
+      } else {
+        console.log("payment error", err);
+        Alert.alert("Payment failed", err?.message || "Please try again.");
+      }
+    } finally {
+      setPayingPlanId(null);
+    }
   };
 
   if (loading) {
@@ -188,8 +253,10 @@ const PremiumSubscription = ({ navigation }) => {
                 ) : (
                   <Text style={styles.feature}>• Premium support and visibility</Text>
                 )}
-                <TouchableOpacity style={styles.cta} onPress={() => onChoose(p)}>
-                  <Text style={styles.ctaText}>Choose {p.name}</Text>
+                <TouchableOpacity style={styles.cta} onPress={() => onChoose(p)} disabled={payingPlanId === p.planCode || payingPlanId === p.id}>
+                  <Text style={styles.ctaText}>
+                    {payingPlanId === p.planCode || payingPlanId === p.id ? "Processing..." : `Choose ${p.name}`}
+                  </Text>
                 </TouchableOpacity>
               </View>
             );

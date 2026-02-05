@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator, TouchableWithoutFeedback, Image } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator, TouchableWithoutFeedback, Image, Alert } from "react-native";
 import NotificationBell from "../components/NotificationBell";
-import { fetchMyProfileApi, fetchUserProfilesApi } from "../api/api";
+import { fetchMyProfileApi, fetchUserProfilesApi, fetchSentRequestsApi, sendFriendRequestApi } from "../api/api";
 import { getSession, clearSession, withPhotoVersion } from "../api/authSession";
 
 const makeProfileStats = ({ matches }) => [
@@ -12,8 +12,8 @@ const makeProfileStats = ({ matches }) => [
 ];
 
 const quickActions = [
-  { name: "Saved", icon: "❤️" },
-  { name: "Premium", icon: "⭐" },
+  { name: "Saved", icon: "❤️", route: "SavedProfiles" },
+  { name: "Premium", icon: "⭐", route: "PremiumSubscription" },
 ];
 
 const recentMatches = [
@@ -74,6 +74,16 @@ const DashboardScreen = ({ navigation, route }) => {
   const [error, setError] = useState("");
   const [newProfiles, setNewProfiles] = useState([]);
   const [matchCount, setMatchCount] = useState("—");
+  const [sendingInterestId, setSendingInterestId] = useState(null);
+  const [sentIds, setSentIds] = useState(new Set());
+
+  const isPremiumActive = (p) => {
+    if (!p) return false;
+    const end = p.premiumEnd ? new Date(p.premiumEnd) : null;
+    const activeFlag = p.premium === true;
+    const notExpired = end ? end > new Date() : true;
+    return activeFlag && notExpired;
+  };
 
   const getOppositeGender = (p) => {
     const g = (p?.gender || "").toString().toLowerCase();
@@ -96,51 +106,50 @@ const DashboardScreen = ({ navigation, route }) => {
         setProfile(res.data);
         const targetGender = getOppositeGender(res.data);
 
-        try {
-          const profilesRes = await fetchUserProfilesApi();
-          const list = Array.isArray(profilesRes?.data) ? profilesRes.data : [];
-          const filteredRaw = list.filter((p) => p?.id && p.id !== userId);
-          const genderFiltered = targetGender
-            ? filteredRaw.filter((p) => (p.gender || "").toString().toLowerCase() === targetGender)
-            : filteredRaw;
-          const filtered = genderFiltered
-            .sort((a, b) => {
-              if (a.createdAt && b.createdAt) return new Date(b.createdAt) - new Date(a.createdAt);
-              return (b.id || 0) - (a.id || 0);
-            })
-            .slice(0, 6)
-            .map((p) => ({
-              name: `${p.firstName || ""} ${p.lastName || ""}`.trim() || "New Member",
-              age: p.age || "—",
-              profession: p.occupation || p.sector || "—",
-              location: p.city ? `${p.city}${p.country ? ", " + p.country : ""}` : p.country || "—",
-              education: p.highestEducation || "—",
-              image:
-                p.updatePhoto ||
-                p.photoUrl ||
-                p.image ||
-                p.avatar ||
-                null,
-              online: false,
-            }));
-          setNewProfiles(filtered);
-        } catch {
-          setNewProfiles([]);
-        }
+        const [profilesRes, sentRes] = await Promise.all([
+          fetchUserProfilesApi(),
+          fetchSentRequestsApi(userId).catch(() => ({ data: [] })),
+        ]);
 
-        // basic matches count derived from all profiles (excluding self)
-        try {
-          const profilesRes = await fetchUserProfilesApi();
-          const list = Array.isArray(profilesRes?.data) ? profilesRes.data : [];
-          const others = list.filter((p) => p?.id && p.id !== userId);
-          const targetGender = getOppositeGender(res.data);
-          const genderFiltered = targetGender
-            ? others.filter((p) => (p.gender || "").toString().toLowerCase() === targetGender)
-            : others;
-          setMatchCount(genderFiltered.length.toString());
-        } catch {
-          setMatchCount("—");
-        }
+        const sentSet = new Set(
+          (Array.isArray(sentRes?.data) ? sentRes.data : [])
+            .map((r) => r.receiverId)
+            .filter(Boolean)
+        );
+        setSentIds(sentSet);
+
+        const list = Array.isArray(profilesRes?.data) ? profilesRes.data : [];
+        const withoutSelf = list.filter((p) => p?.id && p.id !== userId);
+        const withoutSent = withoutSelf.filter((p) => !sentSet.has(p.id));
+
+        const genderFiltered = targetGender
+          ? withoutSent.filter((p) => (p.gender || "").toString().toLowerCase() === targetGender)
+          : withoutSent;
+
+        const filtered = genderFiltered
+          .sort((a, b) => {
+            if (a.createdAt && b.createdAt) return new Date(b.createdAt) - new Date(a.createdAt);
+            return (b.id || 0) - (a.id || 0);
+          })
+          .slice(0, 6)
+          .map((p) => ({
+            id: p.id,
+            name: `${p.firstName || ""} ${p.lastName || ""}`.trim() || "New Member",
+            age: p.age || "—",
+            profession: p.occupation || p.sector || "—",
+            location: p.city ? `${p.city}${p.country ? ", " + p.country : ""}` : p.country || "—",
+            education: p.highestEducation || "—",
+            image:
+              p.updatePhoto ||
+              p.photoUrl ||
+              p.image ||
+              p.avatar ||
+              null,
+            online: false,
+          }));
+        setNewProfiles(filtered);
+
+        setMatchCount(genderFiltered.length.toString());
       } catch (e) {
         setError("Failed to load profile.");
       } finally {
@@ -163,6 +172,47 @@ const DashboardScreen = ({ navigation, route }) => {
     null;
   const photoWithVersion = withPhotoVersion(photo);
   const completion = computeProfileCompletion(profile);
+
+  const premiumActive = isPremiumActive(profile);
+
+  const handleAvatarPress = (match) => {
+    if (!premiumActive) {
+      Alert.alert("Upgrade to Premium", "Unlock profile photos with a Premium plan.", [
+        { text: "Later", style: "cancel" },
+        { text: "Upgrade", onPress: () => navigation.navigate("PremiumSubscription") },
+      ]);
+      return;
+    }
+    if (match?.id) {
+      navigation.navigate("ProfileView", { profileId: match.id });
+    }
+  };
+
+  const handleSendInterest = async (match) => {
+    const session = getSession();
+    if (!session?.userId) {
+      Alert.alert("Login required", "Please login again to send interest.");
+      navigation.navigate("Login");
+      return;
+    }
+    if (!match?.id) return;
+    try {
+      setSendingInterestId(match.id);
+      await sendFriendRequestApi(session.userId, match.id);
+      Alert.alert("Interest sent", "Your interest has been sent successfully.");
+      setNewProfiles((prev) => prev.filter((p) => p.id !== match.id));
+      setSentIds((prev) => {
+        const next = new Set(prev);
+        next.add(match.id);
+        return next;
+      });
+    } catch (e) {
+      const msg = e?.response?.data || e?.message || "Failed to send interest.";
+      Alert.alert("Failed", typeof msg === "string" ? msg : "Failed to send interest.");
+    } finally {
+      setSendingInterestId(null);
+    }
+  };
 
   const handleNotificationNavigate = (type, targetId) => {
     if (type === "PROFILE" && targetId) {
@@ -321,13 +371,20 @@ const DashboardScreen = ({ navigation, route }) => {
                 <View style={styles.matchTopRow}>
                   <View style={styles.matchPerson}>
                     <View>
-                      <View style={styles.matchAvatar}>
-                        {match.image ? (
-                          <Image source={{ uri: match.image }} style={{ width: 64, height: 64, borderRadius: 18 }} />
-                        ) : (
-                          <Text style={styles.matchAvatarText}>{match.image || "🧑"}</Text>
-                        )}
-                      </View>
+                      <TouchableOpacity activeOpacity={0.9} onPress={() => handleAvatarPress(match)}>
+                        <View style={styles.matchAvatar}>
+                          {match.image ? (
+                            <Image
+                              source={{ uri: match.image }}
+                              style={{ width: 64, height: 64, borderRadius: 18 }}
+                              blurRadius={premiumActive ? 0 : 50}
+                            />
+                          ) : (
+                            <Text style={styles.matchAvatarText}>{match.image || "🧑"}</Text>
+                          )}
+                          {!premiumActive && <View style={styles.matchAvatarBlurMask} pointerEvents="none" />}
+                        </View>
+                      </TouchableOpacity>
                       {match.online && <View style={styles.onlineDot} />}
                     </View>
                     <View style={styles.matchMeta}>
@@ -342,8 +399,8 @@ const DashboardScreen = ({ navigation, route }) => {
                 </View>
                 <Text style={styles.matchDetail}>🎓 {match.education}</Text>
                 <View style={styles.matchActions}>
-                  <TouchableOpacity style={styles.primaryButton} onPress={() => handleNavigate("Requests")}>
-                    <Text style={styles.primaryButtonText}>❤️ Send Interest</Text>
+                  <TouchableOpacity style={styles.primaryButton} onPress={() => handleSendInterest(match)} disabled={sendingInterestId === match.id}>
+                    <Text style={styles.primaryButtonText}>{sendingInterestId === match.id ? "Sending..." : "❤️ Send Interest"}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[styles.secondaryButton, styles.secondaryButtonSpacer]} onPress={() => handleNavigate("Requests")}>
                     <Text style={styles.secondaryButtonText}>💬 Message</Text>
@@ -379,7 +436,11 @@ const DashboardScreen = ({ navigation, route }) => {
           </View>
           <View style={styles.quickGrid}>
             {quickActions.map((action) => (
-              <TouchableOpacity key={action.name} style={styles.quickCard} onPress={() => handleNavigate("ProfileView")}>
+              <TouchableOpacity
+                key={action.name}
+                style={styles.quickCard}
+                onPress={() => handleNavigate(action.route || "ProfileView")}
+              >
                 <View style={styles.quickIconWrap}>
                   <Text style={styles.quickIcon}>{action.icon}</Text>
                 </View>
@@ -571,6 +632,11 @@ const styles = StyleSheet.create({
   matchPerson: { flexDirection: "row" },
   matchAvatar: { width: 64, height: 64, borderRadius: 18, backgroundColor: "#ffe0ea", alignItems: "center", justifyContent: "center" },
   matchAvatarText: { fontSize: 30 },
+  matchAvatarBlurMask: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.55)",
+  },
   onlineDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: "#34c759", position: "absolute", bottom: -2, right: 6, borderWidth: 2, borderColor: "#fff" },
   matchMeta: { justifyContent: "center", marginLeft: 10 },
   matchName: { fontWeight: "800", fontSize: 15, color: "#1f1f39" },

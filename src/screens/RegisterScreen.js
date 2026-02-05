@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, SafeAreaView, Alert, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, SafeAreaView, Alert, KeyboardAvoidingView, Platform, ImageBackground } from "react-native";
 import { registerApi, sendRegistrationOtpApi, verifyRegistrationOtpApi } from "../api/api";
 
 const steps = [
@@ -257,6 +257,8 @@ const RegisterScreen = ({ navigation }) => {
     }
   };
 
+  const wallUri = require("../assets/loginwall.jpg");
+
   const renderStep = () => {
     switch (step) {
       case 0:
@@ -434,64 +436,65 @@ const RegisterScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.gradient} />
-      <View style={styles.overlay} />
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 32}
-      >
-        <View style={styles.centerWrapper}>
-          <View style={styles.card}>
-            <Text style={styles.header}>Create Your Profile</Text>
-            <Text style={styles.subheader}>Complete the steps to get started</Text>
+      <ImageBackground source={wallUri} style={styles.background} resizeMode="cover">
+        <View style={styles.backdrop} />
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 32}
+        >
+          <View style={styles.centerWrapper}>
+            <View style={styles.card}>
+              <Text style={styles.header}>Create Your Profile</Text>
+              <Text style={styles.subheader}>Complete the steps to get started</Text>
 
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: `${((step + 1) / steps.length) * 100}%` }]} />
-            </View>
-            <View style={styles.stepRow}>
-              <Text style={styles.stepBadge}>{`Step ${step + 1} of ${steps.length}`}</Text>
-              <Text style={styles.stepTitle}>{steps[step]}</Text>
-            </View>
-
-            <ScrollView
-              style={{ flexGrow: 1 }}
-              contentContainerStyle={[
-                styles.formArea,
-                { paddingBottom: 30 },
-              ]}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-              contentInsetAdjustmentBehavior="always"
-            >
-              {renderStep()}
-
-            </ScrollView>
-            <View style={styles.footerBar}>
-              <View style={styles.footerButtons}>
-                {step > 0 && (
-                  <TouchableOpacity style={[styles.navButton, styles.secondary]} onPress={goBack}>
-                    <Text style={styles.navTextSecondary}>Back</Text>
-                  </TouchableOpacity>
-                )}
-                {step < steps.length - 1 && (
-                  <TouchableOpacity style={[styles.navButton, styles.primary]} onPress={goNext}>
-                    <Text style={styles.navText}>Next</Text>
-                  </TouchableOpacity>
-                )}
-                {step === steps.length - 1 && (
-                  <TouchableOpacity style={[styles.navButton, styles.primary]} onPress={handleRegister} disabled={loading}>
-                    <Text style={styles.navText}>{loading ? "Please wait..." : "Submit"}</Text>
-                  </TouchableOpacity>
-                )}
+              <View style={styles.progressBar}>
+                <View style={[styles.progressFill, { width: `${((step + 1) / steps.length) * 100}%` }]} />
               </View>
-              <TouchableOpacity onPress={() => navigation.navigate("Login")} style={styles.footerLink}>
-                <Text style={styles.footerLinkText}>Already have an account? Login</Text>
-              </TouchableOpacity>
+              <View style={styles.stepRow}>
+                <Text style={styles.stepBadge}>{`Step ${step + 1} of ${steps.length}`}</Text>
+                <Text style={styles.stepTitle}>{steps[step]}</Text>
+              </View>
+
+              <ScrollView
+                style={{ flexGrow: 1 }}
+                contentContainerStyle={[
+                  styles.formArea,
+                  { paddingBottom: 30 },
+                ]}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+                contentInsetAdjustmentBehavior="always"
+              >
+                {renderStep()}
+
+              </ScrollView>
+              <View style={styles.footerBar}>
+                <View style={styles.footerButtons}>
+                  {step > 0 && (
+                    <TouchableOpacity style={[styles.navButton, styles.secondary]} onPress={goBack}>
+                      <Text style={styles.navTextSecondary}>Back</Text>
+                    </TouchableOpacity>
+                  )}
+                  {step < steps.length - 1 && (
+                    <TouchableOpacity style={[styles.navButton, styles.primary]} onPress={goNext}>
+                      <Text style={styles.navText}>Next</Text>
+                    </TouchableOpacity>
+                  )}
+                  {step === steps.length - 1 && (
+                    <TouchableOpacity style={[styles.navButton, styles.primary]} onPress={handleRegister} disabled={loading}>
+                      <Text style={styles.navText}>{loading ? "Please wait..." : "Submit"}</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+                <TouchableOpacity onPress={() => navigation.navigate("Login")} style={styles.footerLink}>
+                  <Text style={styles.footerLinkText}>Already have an account? Login</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </ImageBackground>
     </SafeAreaView>
   );
 };
@@ -571,15 +574,8 @@ const DropdownSelect = ({ label, options, value, onSelect }) => {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#D9F5E4" },
-  gradient: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#D9F5E4",
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#D9F5E4",
-    opacity: 1,
-  },
+  background: { flex: 1 },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(217,245,228,0.25)" },
   centerWrapper: {
     flex: 1,
     alignItems: "center",
@@ -590,14 +586,14 @@ const styles = StyleSheet.create({
   card: {
     width: "94%",
     maxWidth: 380,
-    backgroundColor: "rgba(255,255,255,0.7)",
+    backgroundColor: "rgba(255,255,255,0.6)",
     borderRadius: 16,
     padding: 16,
     shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 4,
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
   },
   header: { fontSize: 20, fontWeight: "700", textAlign: "center" },
   subheader: { fontSize: 12, color: "#666", textAlign: "center", marginTop: 4 },

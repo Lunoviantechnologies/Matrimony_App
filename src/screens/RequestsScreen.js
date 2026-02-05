@@ -15,8 +15,8 @@ const RequestsScreen = () => {
       setLoading(true);
       try {
         const [rec, all] = await Promise.all([
-          axiosInstance.get(`/friends/received/${userId}`),
-          axiosInstance.get("/profiles/Allprofiles"),
+          axiosInstance.get(`/api/friends/received/${userId}`),
+          axiosInstance.get("/api/profiles/Allprofiles"),
         ]);
         setReceived(rec.data || []);
         setProfiles(Array.isArray(all.data) ? all.data : []);
@@ -31,7 +31,8 @@ const RequestsScreen = () => {
 
   const handleRespond = async (requestId, status) => {
     try {
-      await axiosInstance.post(`/friends/respond/${requestId}/${status}`);
+      // backend expects accept boolean query param
+      await axiosInstance.post(`/api/friends/respond/${requestId}?accept=${status === "accept"}`);
       setReceived((prev) => prev.filter((r) => r.requestId !== requestId));
     } catch (e) {
       console.log("respond error:", e?.response?.data || e?.message);
