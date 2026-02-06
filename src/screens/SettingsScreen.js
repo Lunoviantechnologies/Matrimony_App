@@ -51,60 +51,74 @@ const SettingsScreen = () => {
   }, []);
 
   return (
-    <SafeAreaView style={styles.root}>
+    <SafeAreaView style={[styles.root, darkMode && styles.rootDark]}>
       <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
-        <View style={styles.card}>
-          <Text style={styles.title}>Settings</Text>
+        <View style={[styles.card, darkMode && styles.cardDark]}>
+          <Text style={[styles.title, darkMode && styles.titleDark]}>Settings</Text>
           <View style={styles.row}>
-            <Text style={styles.label}>Notifications</Text>
+            <Text style={[styles.label, darkMode && styles.labelDark]}>Notifications</Text>
             <Switch value={notifications} onValueChange={setNotifications} />
           </View>
           <View style={styles.row}>
-            <Text style={styles.label}>Dark Mode</Text>
+            <Text style={[styles.label, darkMode && styles.labelDark]}>Dark Mode</Text>
             <Switch value={darkMode} onValueChange={setDarkMode} />
           </View>
-          <Text style={styles.note}>These toggles are local only. Hook to backend when ready.</Text>
+          <Text style={[styles.note, darkMode && styles.noteDark]}>
+            These toggles are local only. Hook to backend when ready.
+          </Text>
 
-          <View style={styles.divider} />
-          <Text style={styles.sectionTitle}>Premium Status</Text>
+          <View style={[styles.divider, darkMode && styles.dividerDark]} />
+          <Text style={[styles.sectionTitle, darkMode && styles.sectionTitleDark]}>Premium Status</Text>
           {loadingPayment ? (
             <View style={styles.statusRow}>
-              <ActivityIndicator size="small" color="#6c3cff" />
-              <Text style={styles.statusText}>Checking status...</Text>
+              <ActivityIndicator size="small" color={darkMode ? "#f9a8d4" : "#6c3cff"} />
+              <Text style={[styles.statusText, darkMode && styles.statusTextDark]}>Checking status...</Text>
             </View>
           ) : payment ? (
-            <View style={styles.statusCard}>
+            <View style={[styles.statusCard, darkMode && styles.statusCardDark]}>
               <Text style={styles.statusActive}>Active</Text>
-              <Text style={styles.statusDetail}>Plan: {payment.planCode || "—"}</Text>
-              <Text style={styles.statusDetail}>Amount: ₹{payment.amount ?? "—"}</Text>
+              <Text style={[styles.statusDetail, darkMode && styles.statusDetailDark]}>
+                Plan: {payment.planCode || "—"}
+              </Text>
+              <Text style={[styles.statusDetail, darkMode && styles.statusDetailDark]}>
+                Amount: ₹{payment.amount ?? "—"}
+              </Text>
               {payment.premiumEnd && (
-                <Text style={styles.statusDetail}>Expires: {payment.premiumEnd?.split?.("T")?.[0] || payment.premiumEnd}</Text>
+                <Text style={[styles.statusDetail, darkMode && styles.statusDetailDark]}>
+                  Expires: {payment.premiumEnd?.split?.("T")?.[0] || payment.premiumEnd}
+                </Text>
               )}
             </View>
           ) : (
-            <View style={styles.statusCard}>
+            <View style={[styles.statusCard, darkMode && styles.statusCardDark]}>
               <Text style={styles.statusInactive}>No active premium</Text>
-              <Text style={styles.statusDetail}>{paymentError}</Text>
+              <Text style={[styles.statusDetail, darkMode && styles.statusDetailDark]}>{paymentError}</Text>
             </View>
           )}
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.title}>Payment History</Text>
+        <View style={[styles.card, darkMode && styles.cardDark]}>
+          <Text style={[styles.title, darkMode && styles.titleDark]}>Payment History</Text>
           {loadingHistory ? (
             <View style={styles.statusRow}>
-              <ActivityIndicator size="small" color="#6c3cff" />
-              <Text style={styles.statusText}>Loading history...</Text>
+              <ActivityIndicator size="small" color={darkMode ? "#f9a8d4" : "#6c3cff"} />
+              <Text style={[styles.statusText, darkMode && styles.statusTextDark]}>Loading history...</Text>
             </View>
           ) : history.length ? (
             history.map((h) => (
               <View key={`${h.id}-${h.razorpayOrderId || h.createdAt}`} style={styles.historyRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.historyPlan}>{h.planCode || "Plan"}</Text>
-                  <Text style={styles.historyMeta}>
+                  <Text style={[styles.historyPlan, darkMode && styles.historyPlanDark]}>
+                    {h.planCode || "Plan"}
+                  </Text>
+                  <Text style={[styles.historyMeta, darkMode && styles.historyMetaDark]}>
                     ₹{h.amount ?? "—"} • {h.status || "—"}
                   </Text>
-                  {h.createdAt && <Text style={styles.historyDate}>{h.createdAt?.split?.("T")?.[0] || h.createdAt}</Text>}
+                  {h.createdAt && (
+                    <Text style={[styles.historyDate, darkMode && styles.historyDateDark]}>
+                      {h.createdAt?.split?.("T")?.[0] || h.createdAt}
+                    </Text>
+                  )}
                 </View>
                 <View style={[styles.statusPill, pillStyleForStatus(h.status)]}>
                   <Text style={styles.statusPillText}>{(h.status || "").toUpperCase()}</Text>
@@ -112,7 +126,9 @@ const SettingsScreen = () => {
               </View>
             ))
           ) : (
-            <Text style={styles.historyEmpty}>{historyError || "No payments yet."}</Text>
+            <Text style={[styles.historyEmpty, darkMode && styles.historyEmptyDark]}>
+              {historyError || "No payments yet."}
+            </Text>
           )}
         </View>
       </ScrollView>
@@ -129,6 +145,7 @@ const pillStyleForStatus = (status) => {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#f5f7fb", padding: 16 },
+  rootDark: { backgroundColor: "#020617" },
   card: {
     backgroundColor: "#fff",
     borderRadius: 14,
@@ -140,14 +157,25 @@ const styles = StyleSheet.create({
     elevation: 3,
     gap: 12,
   },
+  cardDark: {
+    backgroundColor: "#02091d",
+    borderColor: "#1f2937",
+    shadowOpacity: 0.25,
+  },
   title: { fontSize: 20, fontWeight: "800", color: "#0f172a" },
+  titleDark: { color: "#e5e7eb" },
   row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   label: { fontSize: 15, color: "#0f172a", fontWeight: "600" },
+  labelDark: { color: "#e5e7eb" },
   note: { fontSize: 12, color: "#94a3b8", marginTop: 8 },
+  noteDark: { color: "#64748b" },
   divider: { height: 1, backgroundColor: "#e5e7eb", marginVertical: 10 },
+  dividerDark: { backgroundColor: "#1e293b" },
   sectionTitle: { fontSize: 16, fontWeight: "800", color: "#0f172a", marginBottom: 6 },
+  sectionTitleDark: { color: "#e5e7eb" },
   statusRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   statusText: { color: "#0f172a", fontWeight: "600" },
+  statusTextDark: { color: "#e5e7eb" },
   statusCard: {
     backgroundColor: "#f8f5ff",
     borderRadius: 12,
@@ -156,9 +184,14 @@ const styles = StyleSheet.create({
     borderColor: "#ebe5ff",
     gap: 4,
   },
+  statusCardDark: {
+    backgroundColor: "#02091d",
+    borderColor: "#1f2937",
+  },
   statusActive: { color: "#16a34a", fontWeight: "800" },
-  statusInactive: { color: "#ef4444", fontWeight: "800" },
+  statusInactive: { color: "#f97373", fontWeight: "800" },
   statusDetail: { color: "#0f172a", fontSize: 13, fontWeight: "600" },
+  statusDetailDark: { color: "#e5e7eb" },
   historyRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -167,9 +200,13 @@ const styles = StyleSheet.create({
     borderBottomColor: "#e5e7eb",
   },
   historyPlan: { color: "#0f172a", fontWeight: "700", fontSize: 14 },
+  historyPlanDark: { color: "#e5e7eb" },
   historyMeta: { color: "#475569", fontWeight: "600", marginTop: 2 },
+  historyMetaDark: { color: "#cbd5f5" },
   historyDate: { color: "#94a3b8", fontSize: 12, marginTop: 2 },
+  historyDateDark: { color: "#64748b" },
   historyEmpty: { color: "#94a3b8", fontWeight: "600", marginTop: 4 },
+  historyEmptyDark: { color: "#6b7280" },
   statusPill: {
     paddingHorizontal: 10,
     paddingVertical: 6,

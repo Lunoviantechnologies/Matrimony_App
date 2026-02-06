@@ -60,6 +60,14 @@ const NotificationBell = ({ onNavigate }) => {
     }
   };
 
+  const handleOpenBell = async () => {
+    setOpen(true);
+    // As soon as user opens notifications, mark everything as read
+    if (unreadCount > 0) {
+      await markAllAsRead();
+    }
+  };
+
   const renderItem = ({ item }) => (
     <TouchableOpacity style={[styles.item, !item.read && styles.itemUnread]} onPress={() => handlePressItem(item)}>
       <Text style={styles.itemTitle}>{item.message || "Notification"}</Text>
@@ -71,7 +79,7 @@ const NotificationBell = ({ onNavigate }) => {
 
   return (
     <View>
-      <TouchableOpacity style={styles.bell} onPress={() => setOpen(true)}>
+      <TouchableOpacity style={styles.bell} onPress={handleOpenBell}>
         <Text style={styles.bellIcon}>🔔</Text>
         {unreadCount > 0 && (
           <View style={styles.badge}>

@@ -3,8 +3,24 @@ import axiosInstance from "./axiosInstance";
 // POST /api/auth/login -> { token, role, email, id }
 export const loginApi = (data) => axiosInstance.post("/api/auth/login", data);
 
-// POST /api/profiles/register -> creates profile (backend bcrypts password)
-export const registerApi = (data) => axiosInstance.post("/api/profiles/register", data);
+// POST /api/profiles/register -> creates profile (multipart: profile JSON + optional document)
+export const registerApi = (profileData, documentFile) => {
+  const formData = new FormData();
+  formData.append("profile", JSON.stringify(profileData || {}));
+
+  if (documentFile?.uri) {
+    formData.append("document", {
+      uri: documentFile.uri,
+      // Fall back to generic names/types so backend still accepts it
+      name: documentFile.fileName || "document.jpg",
+      type: documentFile.type || "image/jpeg",
+    });
+  }
+
+  return axiosInstance.post("/api/profiles/register", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+};
 
 // POST /api/auth/forgot-password -> triggers reset flow
 export const forgotPasswordApi = (email) => axiosInstance.post("/api/auth/forgot-password", { email });
@@ -71,6 +87,28 @@ export const fetchChatConversationApi = (senderId, receiverId, page = 0, size = 
 // POST /api/chat/send/{senderId}/{receiverId}
 export const sendChatMessageApi = (senderId, receiverId, message) =>
   axiosInstance.post(`/api/chat/send/${senderId}/${receiverId}`, { message });
+
+// POST /api/chat/clear/{senderId}/{receiverId}
+export const clearChatApi = (senderId, receiverId) =>
+  axiosInstance.post(`/api/chat/clear/${senderId}/${receiverId}`);
+
+// BLOCK / REPORT
+// POST /api/block/user/{blockerId}/{blockedId}
+export const blockUserApi = (blockerId, blockedId) =>
+  axiosInstance.post(`/api/block/user/${blockerId}/${blockedId}`);
+
+// POST /api/block/unblock/{blockerId}/{blockedId}
+export const unblockUserApi = (blockerId, blockedId) =>
+  axiosInstance.post(`/api/block/unblock/${blockerId}/${blockedId}`);
+
+// GET /api/block/status/{blockerId}/{blockedId}
+export const getBlockStatusApi = (blockerId, blockedId) =>
+  axiosInstance.get(`/api/block/status/${blockerId}/${blockedId}`);
+
+// POST /api/reports/user/{reportedUserId}
+// body: { reporterId, reason, description }
+export const reportUserApi = (reportedUserId, payload) =>
+  axiosInstance.post(`/api/reports/user/${reportedUserId}`, payload);
 
 // POST /api/auth/register/send-otp -> sends verification OTP to email
 export const sendRegistrationOtpApi = (email) =>

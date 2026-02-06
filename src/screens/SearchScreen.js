@@ -14,6 +14,7 @@ import {
 import { useIsFocused } from "@react-navigation/native";
 import { fetchMyProfileApi, fetchUserProfilesApi } from "../api/api";
 import { getSession, withPhotoVersion } from "../api/authSession";
+import { maskName } from "../utils/nameMask";
 
 const isPremiumActive = (p) => {
   if (!p) return false;
@@ -94,6 +95,8 @@ const SearchScreen = ({ navigation, route }) => {
         return fields.some((f) => f.includes(q));
       });
   }, [profiles, myProfile, query]);
+
+  const premiumActive = isPremiumActive(myProfile);
 
   const handleViewProfile = (profileId) => {
     if (!profileId) return;
@@ -177,17 +180,18 @@ const SearchScreen = ({ navigation, route }) => {
                     <Image
                       source={{ uri: withPhotoVersion(p.updatePhoto || p.photoUrl || p.image || p.avatar) }}
                       style={styles.avatar}
-                      blurRadius={isPremiumActive(myProfile) ? 0 : 50}
                     />
                     ) : (
                       <Text style={styles.avatarFallback}>{p.gender?.toString().toLowerCase() === "female" ? "👩" : "🧑"}</Text>
                     )}
-                    {!isPremiumActive(myProfile) && <View style={styles.avatarMask} pointerEvents="none" />}
+                    {/* Blur removed: all users can see profile photos clearly */}
                   </View>
                 </TouchableOpacity>
                 <View style={styles.meta}>
                   <Text style={styles.name}>
-                    {(p.firstName || "New") + " " + (p.lastName || "Member")}
+                    {premiumActive
+                      ? `${(p.firstName || "New").trim()} ${(p.lastName || "Member").trim()}`.trim()
+                      : maskName(p.firstName || "New", p.lastName || "Member")}
                     {p.age ? `, ${p.age}` : ""}
                   </Text>
                   <Text style={styles.line}>{p.occupation || "—"}</Text>

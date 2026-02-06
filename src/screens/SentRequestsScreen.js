@@ -1,13 +1,15 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { SafeAreaView, Text, FlatList, View, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import axiosInstance from "../api/axiosInstance";
 import { getSession } from "../api/authSession";
+import { maskName } from "../utils/nameMask";
 import { fetchSentRequestsApi } from "../api/api";
 
 const SentRequestsScreen = () => {
   const { userId } = getSession();
   const [sent, setSent] = useState([]);
   const [profiles, setProfiles] = useState([]);
+  const [me, setMe] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -15,12 +17,26 @@ const SentRequestsScreen = () => {
       if (!userId) return;
       setLoading(true);
       try {
-        const [sentRes, allProfiles] = await Promise.all([
+        const [sentRes, allProfiles, mine, accSent] = await Promise.all([
           fetchSentRequestsApi(userId),
           axiosInstance.get("/api/profiles/Allprofiles"),
+          axiosInstance.get(`/api/profiles/myprofiles/${userId}`),
+          axiosInstance.get(`/api/friends/accepted/sent/${userId}`),
         ]);
-        setSent(sentRes.data || []);
+
+        const acceptedIds = new Set(
+          (accSent.data || [])
+            .map((r) => r.receiverId)
+            .filter(Boolean)
+        );
+
+        const pendingOnly = (sentRes.data || []).filter(
+          (r) => !acceptedIds.has(r.receiverId)
+        );
+
+        setSent(pendingOnly);
         setProfiles(Array.isArray(allProfiles.data) ? allProfiles.data : []);
+        setMe(mine.data);
       } catch (e) {
         console.log("sent requests load error:", e?.response?.data || e?.message);
       } finally {
@@ -39,11 +55,25 @@ const SentRequestsScreen = () => {
     }
   };
 
+  const premiumActive = useMemo(() => {
+    if (!me) return false;
+    const end = me.premiumEnd ? new Date(me.premiumEnd) : null;
+    const activeFlag = me.premium === true;
+    const notExpired = end ? end > new Date() : true;
+    return activeFlag && notExpired;
+  }, [me]);
+
   const renderItem = ({ item }) => {
     const otherProfile = profiles.find((p) => p.id === item.receiverId);
     return (
       <View style={styles.card}>
-        <Text style={styles.name}>{otherProfile ? `${otherProfile.firstName} ${otherProfile.lastName}` : item.receiverName || "User"}</Text>
+        <Text style={styles.name}>
+          {otherProfile
+            ? premiumActive
+              ? `${(otherProfile.firstName || "").trim()} ${(otherProfile.lastName || "").trim()}`.trim() || "User"
+              : maskName(otherProfile.firstName, otherProfile.lastName)
+            : item.receiverName || "User"}
+        </Text>
         <Text style={styles.meta}>{otherProfile?.city || "—"}</Text>
         <TouchableOpacity style={styles.btn} onPress={() => handleCancel(item.requestId)}>
           <Text style={styles.btnText}>Cancel</Text>

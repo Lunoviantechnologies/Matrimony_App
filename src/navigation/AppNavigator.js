@@ -32,6 +32,7 @@ import NewMatchesScreen from "../screens/NewMatchesScreen";
 import AstroTalkScreen from "../screens/AstroTalkScreen";
 import ChatScreen from "../screens/ChatScreen";
 import AcceptedMatchesScreen from "../screens/AcceptedMatchesScreen";
+import InboxScreen from "../screens/InboxScreen";
 
 
 
@@ -45,7 +46,7 @@ const tabIcons = {
   Search: "🔍",
   Matches: "❤️",
   Chat: "💬",
-  Profile: "👤",
+  Inbox: "📥",
 };
 
 const MainTabs = () => (
@@ -75,7 +76,7 @@ const MainTabs = () => (
     <Tab.Screen name="Search" component={SearchScreen} />
     <Tab.Screen name="Matches" component={MatchesScreen} />
     <Tab.Screen name="Chat" component={ChatScreen} />
-    <Tab.Screen name="Profile" component={ProfileView} />
+    <Tab.Screen name="Inbox" component={InboxScreen} />
   </Tab.Navigator>
 );
 
@@ -98,7 +99,7 @@ const routes = [
   { name: "SavedProfiles", component: SavedProfilesScreen },
   { name: "HelpSupport", component: FAQScreen },
   { name: "Settings", component: SettingsScreen },
-  { name: "ChatWindow", component: ChatWindowScreen },
+  { name: "ChatWindow", component: ChatWindowScreen, options: { headerShown: false } },
   { name: "Terms", component: TermsScreen, options: { title: "Terms & Conditions" } },
   { name: "PrivacyPolicy", component: PrivacyPolicyScreen, options: { title: "Privacy Policy" } },
   { name: "CommunityGuidelines", component: CommunityGuidelinesScreen, options: { title: "Community Guidelines" } },
@@ -120,7 +121,7 @@ const AppNavigator = () => (
               name={r.name}
               component={r.component}
               initialParams={r.params}
-              options={{ title: r.params?.title || r.name }}
+              options={r.options || { title: r.params?.title || r.name }}
             />
           );
         }

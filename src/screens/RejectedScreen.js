@@ -1,12 +1,14 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { SafeAreaView, Text, FlatList, View, StyleSheet, ActivityIndicator } from "react-native";
 import axiosInstance from "../api/axiosInstance";
 import { getSession } from "../api/authSession";
+import { maskName } from "../utils/nameMask";
 
 const RejectedScreen = () => {
   const { userId } = getSession();
   const [rejected, setRejected] = useState([]);
   const [profiles, setProfiles] = useState([]);
+  const [me, setMe] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -14,13 +16,15 @@ const RejectedScreen = () => {
       if (!userId) return;
       setLoading(true);
       try {
-        const [recv, sent, all] = await Promise.all([
+        const [recv, sent, all, mine] = await Promise.all([
           axiosInstance.get(`/friends/rejected/received/${userId}`),
           axiosInstance.get(`/friends/rejected/sent/${userId}`),
           axiosInstance.get("/profiles/Allprofiles"),
+          axiosInstance.get(`/api/profiles/myprofiles/${userId}`),
         ]);
         setRejected([...(recv.data || []), ...(sent.data || [])]);
         setProfiles(Array.isArray(all.data) ? all.data : []);
+        setMe(mine.data);
       } catch (e) {
         console.log("rejected load error:", e?.response?.data || e?.message);
       } finally {
@@ -30,10 +34,24 @@ const RejectedScreen = () => {
     load();
   }, [userId]);
 
+  const premiumActive = useMemo(() => {
+    if (!me) return false;
+    const end = me.premiumEnd ? new Date(me.premiumEnd) : null;
+    const activeFlag = me.premium === true;
+    const notExpired = end ? end > new Date() : true;
+    return activeFlag && notExpired;
+  }, [me]);
+
   const renderItem = ({ item }) => {
     const otherId = item.senderId === userId ? item.receiverId : item.senderId;
     const p = profiles.find((x) => x.id === otherId);
-    const name = p ? `${p.firstName} ${p.lastName}` : item.senderId === userId ? item.receiverName : item.senderName || "User";
+    const name = p
+      ? premiumActive
+        ? `${(p.firstName || "").trim()} ${(p.lastName || "").trim()}`.trim() || "User"
+        : maskName(p.firstName, p.lastName)
+      : item.senderId === userId
+      ? item.receiverName
+      : item.senderName || "User";
     const note = item.senderId === userId ? "They rejected your request" : "You rejected their request";
     return (
       <View style={styles.card}>

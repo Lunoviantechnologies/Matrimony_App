@@ -1,5 +1,18 @@
 import React, { useMemo, useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, SafeAreaView, Alert, KeyboardAvoidingView, Platform, ImageBackground } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  SafeAreaView,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ImageBackground,
+} from "react-native";
+import { launchImageLibrary } from "react-native-image-picker";
 import { registerApi, sendRegistrationOtpApi, verifyRegistrationOtpApi } from "../api/api";
 
 const steps = [
@@ -43,6 +56,7 @@ const heightOptions = Array.from({ length: 92 }, (_, i) => 122 + i).map((cm) => 
 const RegisterScreen = ({ navigation }) => {
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [documentFile, setDocumentFile] = useState(null);
   const [otpSending, setOtpSending] = useState(false);
   const [otpVerifying, setOtpVerifying] = useState(false);
   const [showOtpField, setShowOtpField] = useState(false);
@@ -91,7 +105,16 @@ const RegisterScreen = ({ navigation }) => {
     } else if (step === 1) {
       if (!form.firstName) e.firstName = "Required";
       if (!form.lastName) e.lastName = "Required";
-      if (!form.age) e.age = "Required";
+      if (!form.age) {
+        e.age = "Required";
+      } else {
+        const ageNum = Number(form.age);
+        if (!Number.isFinite(ageNum)) {
+          e.age = "Enter a valid number";
+        } else if (ageNum < 18) {
+          e.age = "Age must be at least 18";
+        }
+      }
       if (!form.dobDay || !form.dobMonth || !form.dobYear) e.dob = "DOB required";
     } else if (step === 2) {
       if (!form.religion) e.religion = "Required";
@@ -131,6 +154,31 @@ const RegisterScreen = ({ navigation }) => {
 
   const goBack = () => {
     if (step > 0) setStep(step - 1);
+  };
+
+  const pickDocument = async () => {
+    try {
+      const res = await launchImageLibrary({
+        mediaType: "photo",
+        selectionLimit: 1,
+      });
+      if (res.didCancel) {
+        return;
+      }
+      const asset = res.assets && res.assets[0];
+      if (!asset?.uri) {
+        Alert.alert("Failed", "Could not read selected file. Please try again.");
+        return;
+      }
+      setDocumentFile({
+        uri: asset.uri,
+        fileName: asset.fileName,
+        type: asset.type,
+      });
+    } catch (e) {
+      console.log("DOCUMENT PICK ERROR", e);
+      Alert.alert("Error", "Unable to open gallery. Please try again.");
+    }
   };
 
   const sendEmailOtp = async () => {
@@ -239,7 +287,7 @@ const RegisterScreen = ({ navigation }) => {
 
     setLoading(true);
     try {
-      await registerApi(payload);
+      await registerApi(payload, documentFile);
       Alert.alert("Success", "Registration successful. Please log in.", [
         { text: "OK", onPress: () => navigation.replace("Login") },
       ]);
@@ -427,6 +475,18 @@ const RegisterScreen = ({ navigation }) => {
                 {form.emailVerified && <Text style={styles.successText}>Email verified</Text>}
               </>
             )}
+
+            <View style={{ marginTop: 16 }}>
+              <Text style={styles.label}>Verification document (optional)</Text>
+              <TouchableOpacity style={styles.uploadButton} onPress={pickDocument}>
+                <Text style={styles.uploadButtonText}>
+                  {documentFile?.fileName ? documentFile.fileName : "Attach ID / supporting document"}
+                </Text>
+              </TouchableOpacity>
+              {!!documentFile?.fileName && (
+                <Text style={styles.helperTextSmall}>Selected: {documentFile.fileName}</Text>
+              )}
+            </View>
           </>
         );
       default:
@@ -715,6 +775,11 @@ const styles = StyleSheet.create({
     color: "#666",
     marginBottom: 8,
   },
+  helperTextSmall: {
+    color: "#777",
+    fontSize: 11,
+    marginTop: 4,
+  },
   otpRow: {
     flexDirection: "row",
     justifyContent: "flex-start",
@@ -731,6 +796,19 @@ const styles = StyleSheet.create({
     color: "#28a745",
     marginTop: 8,
     fontWeight: "700",
+  },
+  uploadButton: {
+    marginTop: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    backgroundColor: "#f9f9f9",
+  },
+  uploadButtonText: {
+    fontSize: 13,
+    color: "#444",
   },
   dropdownList: {
     borderWidth: 1,

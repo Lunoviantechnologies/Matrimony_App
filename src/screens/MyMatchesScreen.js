@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { SafeAreaView, View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
+import { SafeAreaView, View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from "react-native";
 import axiosInstance from "../api/axiosInstance";
 import { getSession } from "../api/authSession";
+import { maskName } from "../utils/nameMask";
 
 const MyMatchesScreen = () => {
   const { userId } = getSession();
@@ -57,9 +58,21 @@ const MyMatchesScreen = () => {
       .filter((p) => (me?.gender ? p.gender !== me.gender : true));
   }, [profiles, hiddenIds, me]);
 
+  const premiumActive = useMemo(() => {
+    if (!me) return false;
+    const end = me.premiumEnd ? new Date(me.premiumEnd) : null;
+    const activeFlag = me.premium === true;
+    const notExpired = end ? end > new Date() : true;
+    return activeFlag && notExpired;
+  }, [me]);
+
   const renderItem = ({ item }) => (
     <View style={styles.card}>
-      <Text style={styles.name}>{item.firstName} {item.lastName}</Text>
+      <Text style={styles.name}>
+        {premiumActive
+          ? `${(item.firstName || "").trim()} ${(item.lastName || "").trim()}`.trim() || "User"
+          : maskName(item.firstName, item.lastName)}
+      </Text>
       <Text style={styles.meta}>{item.city || "—"}</Text>
       <Text style={styles.meta}>{item.occupation || "—"} • {item.highestEducation || "—"}</Text>
       <TouchableOpacity style={styles.btn} onPress={() => handleSendRequest(item.id)}>
@@ -69,6 +82,13 @@ const MyMatchesScreen = () => {
   );
 
   const handleSendRequest = async (receiverId) => {
+    if (!premiumActive) {
+      Alert.alert(
+        "Premium required",
+        "Please upgrade to a Premium plan to send interests or requests."
+      );
+      return;
+    }
     try {
       await axiosInstance.post(`/api/friends/send/${userId}/${receiverId}`);
       setSent((prev) => [...prev, { senderId: userId, receiverId }]);

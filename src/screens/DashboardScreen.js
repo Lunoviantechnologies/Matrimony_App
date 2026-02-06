@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, Act
 import NotificationBell from "../components/NotificationBell";
 import { fetchMyProfileApi, fetchUserProfilesApi, fetchSentRequestsApi, sendFriendRequestApi } from "../api/api";
 import { getSession, clearSession, withPhotoVersion } from "../api/authSession";
+import { maskName } from "../utils/nameMask";
 
 const makeProfileStats = ({ matches }) => [
   { label: "Profile Views", value: "234", icon: "👁️", colors: ["#5b8dff", "#5f6bff"] },
@@ -126,6 +127,8 @@ const DashboardScreen = ({ navigation, route }) => {
           ? withoutSent.filter((p) => (p.gender || "").toString().toLowerCase() === targetGender)
           : withoutSent;
 
+        const userIsPremium = isPremiumActive(res.data);
+
         const filtered = genderFiltered
           .sort((a, b) => {
             if (a.createdAt && b.createdAt) return new Date(b.createdAt) - new Date(a.createdAt);
@@ -134,7 +137,9 @@ const DashboardScreen = ({ navigation, route }) => {
           .slice(0, 6)
           .map((p) => ({
             id: p.id,
-            name: `${p.firstName || ""} ${p.lastName || ""}`.trim() || "New Member",
+            name: userIsPremium
+              ? `${(p.firstName || "New").trim()} ${(p.lastName || "Member").trim()}`.trim()
+              : maskName(p.firstName || "New", p.lastName || "Member"),
             age: p.age || "—",
             profession: p.occupation || p.sector || "—",
             location: p.city ? `${p.city}${p.country ? ", " + p.country : ""}` : p.country || "—",
@@ -189,6 +194,13 @@ const DashboardScreen = ({ navigation, route }) => {
   };
 
   const handleSendInterest = async (match) => {
+    if (!premiumActive) {
+      Alert.alert(
+        "Premium required",
+        "Please upgrade to a Premium plan to send interests or requests."
+      );
+      return;
+    }
     const session = getSession();
     if (!session?.userId) {
       Alert.alert("Login required", "Please login again to send interest.");
@@ -311,13 +323,27 @@ const DashboardScreen = ({ navigation, route }) => {
 
         <View style={styles.completionCard}>
           <View style={styles.completionRow}>
-            <Text style={styles.completionLabel}>Profile Completion</Text>
-            <Text style={styles.completionValue}>{completion}%</Text>
+            <View style={styles.completionLeft}>
+              <View style={styles.completionIcon}>
+                <Text style={styles.completionIconText}>✅</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.completionLabel}>Profile completion</Text>
+                <Text style={styles.completionSub}>
+                  {completion === 100
+                    ? "Great! Your profile is ready."
+                    : "Complete your profile to get better matches."}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.completionBadge}>
+              <Text style={styles.completionBadgeText}>{completion}%</Text>
+            </View>
           </View>
           <View style={styles.progressTrack}>
             <View style={[styles.progressFill, { width: `${completion}%` }]} />
           </View>
-            <Text style={styles.completionHint}>Location: {location}</Text>
+          <Text style={styles.completionHint}>Location: {location}</Text>
         </View>
       </View>
 
@@ -377,33 +403,45 @@ const DashboardScreen = ({ navigation, route }) => {
                             <Image
                               source={{ uri: match.image }}
                               style={{ width: 64, height: 64, borderRadius: 18 }}
-                              blurRadius={premiumActive ? 0 : 50}
                             />
                           ) : (
                             <Text style={styles.matchAvatarText}>{match.image || "🧑"}</Text>
                           )}
-                          {!premiumActive && <View style={styles.matchAvatarBlurMask} pointerEvents="none" />}
+                          {/* Blur mask removed so all users see clear photos */}
                         </View>
                       </TouchableOpacity>
                       {match.online && <View style={styles.onlineDot} />}
                     </View>
                     <View style={styles.matchMeta}>
-                      <Text style={styles.matchName}>{`${match.name}, ${match.age}`}</Text>
+                      <View style={styles.matchNameRow}>
+                        <Text
+                          style={styles.matchName}
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                        >
+                          {`${match.name}, ${match.age}`}
+                        </Text>
+                        <View style={styles.matchScore}>
+                          <Text style={styles.matchScoreText}>
+                            {match.matchScore ? `${match.matchScore}% Match` : "New"}
+                          </Text>
+                        </View>
+                      </View>
                       <Text style={styles.matchDetail}>💼 {match.profession}</Text>
                       <Text style={styles.matchDetail}>📍 {match.location}</Text>
                     </View>
                   </View>
-                  <View style={styles.matchScore}>
-                    <Text style={styles.matchScoreText}>{match.matchScore ? `${match.matchScore}% Match` : "New"}</Text>
-                  </View>
                 </View>
                 <Text style={styles.matchDetail}>🎓 {match.education}</Text>
                 <View style={styles.matchActions}>
-                  <TouchableOpacity style={styles.primaryButton} onPress={() => handleSendInterest(match)} disabled={sendingInterestId === match.id}>
-                    <Text style={styles.primaryButtonText}>{sendingInterestId === match.id ? "Sending..." : "❤️ Send Interest"}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.secondaryButton, styles.secondaryButtonSpacer]} onPress={() => handleNavigate("Requests")}>
-                    <Text style={styles.secondaryButtonText}>💬 Message</Text>
+                  <TouchableOpacity
+                    style={styles.primaryButton}
+                    onPress={() => handleSendInterest(match)}
+                    disabled={sendingInterestId === match.id}
+                  >
+                    <Text style={styles.primaryButtonText}>
+                      {sendingInterestId === match.id ? "Sending..." : "❤️ Send Interest"}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -514,12 +552,45 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   badgeText: { color: "#fff", fontSize: 10, fontWeight: "700" },
-  completionCard: { backgroundColor: "rgba(255,255,255,0.75)", padding: 12, borderRadius: 16 },
-  completionRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 6 },
-  completionLabel: { color: "#1f1f39", fontWeight: "600" },
-  completionValue: { color: "#1f1f39", fontWeight: "800" },
-  progressTrack: { height: 8, backgroundColor: "rgba(0,0,0,0.07)", borderRadius: 8 },
-  progressFill: { width: "85%", height: 8, backgroundColor: "#22c58b", borderRadius: 8 },
+  completionCard: {
+    backgroundColor: "rgba(255,255,255,0.9)",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+    marginTop: 14,
+  },
+  completionRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
+  completionLeft: { flexDirection: "row", alignItems: "center", flex: 1, marginRight: 8, columnGap: 10 },
+  completionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#ecfdf3",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  completionIconText: { fontSize: 18 },
+  completionLabel: { color: "#1f1f39", fontWeight: "700", fontSize: 14 },
+  completionSub: { color: "#6b7280", fontSize: 11, marginTop: 2, maxWidth: 200 },
+  completionBadge: {
+    minWidth: 52,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "#ecfdf3",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+  },
+  completionBadgeText: { color: "#16a34a", fontWeight: "800", fontSize: 13 },
+  progressTrack: { height: 8, backgroundColor: "rgba(15,23,42,0.06)", borderRadius: 999, overflow: "hidden" },
+  progressFill: { height: 8, backgroundColor: "#22c58b", borderRadius: 999 },
   completionHint: { color: "#3f3e52", fontSize: 11, marginTop: 6 },
   overlay: {
     position: "absolute",
@@ -615,20 +686,20 @@ const styles = StyleSheet.create({
   premiumButton: { marginTop: 10, backgroundColor: "#fff", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12 },
   premiumButtonText: { color: "#d76400", fontWeight: "800" },
   premiumCrown: { fontSize: 40 },
-  matchScroll: { paddingVertical: 4, paddingHorizontal: 2, gap: 10 },
+  matchScroll: { paddingVertical: 6, paddingHorizontal: 4, gap: 12 },
   matchCard: {
     width: 260,
     backgroundColor: "#fff",
-    borderRadius: 18,
-    padding: 14,
+    borderRadius: 20,
+    padding: 16,
     shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-    marginRight: 10,
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
+    marginRight: 12,
   },
-  matchTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 },
+  matchTopRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: 8 },
   matchPerson: { flexDirection: "row" },
   matchAvatar: { width: 64, height: 64, borderRadius: 18, backgroundColor: "#ffe0ea", alignItems: "center", justifyContent: "center" },
   matchAvatarText: { fontSize: 30 },
@@ -638,14 +709,21 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.55)",
   },
   onlineDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: "#34c759", position: "absolute", bottom: -2, right: 6, borderWidth: 2, borderColor: "#fff" },
-  matchMeta: { justifyContent: "center", marginLeft: 10 },
-  matchName: { fontWeight: "800", fontSize: 15, color: "#1f1f39" },
+  matchMeta: { justifyContent: "center", marginLeft: 10, flex: 1 },
+  matchNameRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", columnGap: 8, rowGap: 4 },
+  matchName: { fontWeight: "800", fontSize: 15, color: "#1f1f39", flexShrink: 1, maxWidth: "100%" },
   matchDetail: { fontSize: 12, color: "#6b6a7a", marginTop: 2 },
-  matchScore: { backgroundColor: "#22c58b", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
-  matchScoreText: { color: "#fff", fontWeight: "800", fontSize: 12 },
-  matchActions: { flexDirection: "row", marginTop: 12 },
-  primaryButton: { flex: 1, backgroundColor: "#f75b8a", paddingVertical: 12, borderRadius: 12, alignItems: "center" },
-  primaryButtonText: { color: "#fff", fontWeight: "800" },
+  matchScore: { backgroundColor: "#22c58b", paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999 },
+  matchScoreText: { color: "#fff", fontWeight: "700", fontSize: 11 },
+  matchActions: { flexDirection: "row", marginTop: 14 },
+  primaryButton: {
+    flex: 1,
+    backgroundColor: "#f75b8a",
+    paddingVertical: 12,
+    borderRadius: 999,
+    alignItems: "center",
+  },
+  primaryButtonText: { color: "#fff", fontWeight: "800", letterSpacing: 0.3 },
   secondaryButton: { flex: 1, backgroundColor: "#f2f2f6", paddingVertical: 12, borderRadius: 12, alignItems: "center" },
   secondaryButtonSpacer: { marginLeft: 10 },
   secondaryButtonText: { color: "#1f1f39", fontWeight: "800" },

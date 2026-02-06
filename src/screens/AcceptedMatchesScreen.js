@@ -1,12 +1,14 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { SafeAreaView, View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator } from "react-native";
 import axiosInstance from "../api/axiosInstance";
 import { getSession } from "../api/authSession";
+import { maskName } from "../utils/nameMask";
 
 const AcceptedMatchesScreen = ({ navigation }) => {
   const { userId } = getSession();
   const [accepted, setAccepted] = useState([]);
   const [profiles, setProfiles] = useState([]);
+  const [me, setMe] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -14,13 +16,15 @@ const AcceptedMatchesScreen = ({ navigation }) => {
       if (!userId) return;
       setLoading(true);
       try {
-        const [accRecv, accSent, allProfiles] = await Promise.all([
+        const [accRecv, accSent, allProfiles, mine] = await Promise.all([
           axiosInstance.get(`/api/friends/accepted/received/${userId}`),
           axiosInstance.get(`/api/friends/accepted/sent/${userId}`),
           axiosInstance.get("/api/profiles/Allprofiles"),
+          axiosInstance.get(`/api/profiles/myprofiles/${userId}`),
         ]);
         setAccepted([...(accRecv.data || []), ...(accSent.data || [])]);
         setProfiles(Array.isArray(allProfiles.data) ? allProfiles.data : []);
+        setMe(mine.data);
       } catch (e) {
         console.log("accepted load error:", e?.response?.data || e?.message);
       } finally {
@@ -30,24 +34,42 @@ const AcceptedMatchesScreen = ({ navigation }) => {
     load();
   }, [userId]);
 
+  const premiumActive = useMemo(() => {
+    if (!me) return false;
+    const end = me.premiumEnd ? new Date(me.premiumEnd) : null;
+    const activeFlag = me.premium === true;
+    const notExpired = end ? end > new Date() : true;
+    return activeFlag && notExpired;
+  }, [me]);
+
   const renderItem = ({ item }) => {
     const otherId = Number(item.senderId) === Number(userId) ? item.receiverId : item.senderId;
     const p = profiles.find((x) => x.id === otherId);
-    const name = p ? `${p.firstName || ""} ${p.lastName || ""}`.trim() || "User" : item.receiverName || item.senderName || "User";
+    const name = p
+      ? premiumActive
+        ? `${(p.firstName || "").trim()} ${(p.lastName || "").trim()}`.trim() || "User"
+        : maskName(p.firstName, p.lastName)
+      : item.receiverName || item.senderName || "User";
     const city = p?.city || p?.country || "—";
     return (
-      <View style={styles.card}>
+      <TouchableOpacity
+        style={styles.card}
+        activeOpacity={0.85}
+        onPress={() => navigation.navigate("ProfileView", { profileId: otherId })}
+      >
         <Text style={styles.name}>{name}</Text>
         <Text style={styles.meta}>{city}</Text>
         <View style={styles.actions}>
           <TouchableOpacity
             style={styles.chatBtn}
-            onPress={() => navigation.navigate("Dashboard", { screen: "Chat", params: { selectedId: otherId } })}
+            onPress={() =>
+              navigation.navigate("Dashboard", { screen: "Chat", params: { selectedId: otherId } })
+            }
           >
             <Text style={styles.chatText}>Chat</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 

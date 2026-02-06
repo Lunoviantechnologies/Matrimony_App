@@ -1,12 +1,14 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { SafeAreaView, Text, FlatList, View, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import axiosInstance from "../api/axiosInstance";
 import { getSession } from "../api/authSession";
+import { maskName } from "../utils/nameMask";
 
 const RequestsScreen = () => {
   const { userId } = getSession();
   const [received, setReceived] = useState([]);
   const [profiles, setProfiles] = useState([]);
+  const [me, setMe] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -14,12 +16,14 @@ const RequestsScreen = () => {
       if (!userId) return;
       setLoading(true);
       try {
-        const [rec, all] = await Promise.all([
+        const [rec, all, mine] = await Promise.all([
           axiosInstance.get(`/api/friends/received/${userId}`),
           axiosInstance.get("/api/profiles/Allprofiles"),
+          axiosInstance.get(`/api/profiles/myprofiles/${userId}`),
         ]);
         setReceived(rec.data || []);
         setProfiles(Array.isArray(all.data) ? all.data : []);
+        setMe(mine.data);
       } catch (e) {
         console.log("received load error:", e?.response?.data || e?.message);
       } finally {
@@ -39,11 +43,25 @@ const RequestsScreen = () => {
     }
   };
 
+  const premiumActive = useMemo(() => {
+    if (!me) return false;
+    const end = me.premiumEnd ? new Date(me.premiumEnd) : null;
+    const activeFlag = me.premium === true;
+    const notExpired = end ? end > new Date() : true;
+    return activeFlag && notExpired;
+  }, [me]);
+
   const renderItem = ({ item }) => {
     const otherProfile = profiles.find((p) => p.id === item.senderId);
     return (
       <View style={styles.card}>
-        <Text style={styles.name}>{otherProfile ? `${otherProfile.firstName} ${otherProfile.lastName}` : item.senderName || "User"}</Text>
+        <Text style={styles.name}>
+          {otherProfile
+            ? premiumActive
+              ? `${(otherProfile.firstName || "").trim()} ${(otherProfile.lastName || "").trim()}`.trim() || "User"
+              : maskName(otherProfile.firstName, otherProfile.lastName)
+            : item.senderName || "User"}
+        </Text>
         <Text style={styles.meta}>{otherProfile?.city || "—"}</Text>
         <View style={styles.actions}>
           <TouchableOpacity style={styles.accept} onPress={() => handleRespond(item.requestId, "accept")}>
