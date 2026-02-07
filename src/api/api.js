@@ -125,3 +125,13 @@ export const markNotificationReadApi = (id) =>
   axiosInstance.post(`/api/notifications/read/${id}`);
 export const markAllNotificationsReadApi = (userId) =>
   axiosInstance.post(`/api/notifications/mark-all-read?userId=${userId}`);
+
+// ==========================
+// REFER & EARN
+// ==========================
+
+export const fetchReferralSummaryApi = () =>
+  axiosInstance.get("/api/referrals/me");
+
+export const useReferralCodeApi = (referralCode) =>
+  axiosInstance.post("/api/referrals/use-code", { referralCode });

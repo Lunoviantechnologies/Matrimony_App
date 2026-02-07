@@ -11,6 +11,7 @@ import GenericScreen from "../screens/GenericScreen";
 import NotificationsScreen from "../screens/NotificationsScreen";
 import SavedProfilesScreen from "../screens/SavedProfilesScreen";
 import SettingsScreen from "../screens/SettingsScreen";
+import ReferAndEarnScreen from "../screens/ReferAndEarnScreen";
 import FAQScreen from "../screens/FAQScreen";
 import ChatWindowScreen from "../screens/ChatWindowScreen";
 import TermsScreen from "../screens/TermsScreen";
@@ -99,6 +100,7 @@ const routes = [
   { name: "SavedProfiles", component: SavedProfilesScreen },
   { name: "HelpSupport", component: FAQScreen },
   { name: "Settings", component: SettingsScreen },
+  { name: "ReferAndEarn", component: ReferAndEarnScreen, options: { title: "Refer & Earn" } },
   { name: "ChatWindow", component: ChatWindowScreen, options: { headerShown: false } },
   { name: "Terms", component: TermsScreen, options: { title: "Terms & Conditions" } },
   { name: "PrivacyPolicy", component: PrivacyPolicyScreen, options: { title: "Privacy Policy" } },

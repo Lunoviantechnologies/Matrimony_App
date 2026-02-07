@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator, TouchableWithoutFeedback, Image, Alert } from "react-native";
 import NotificationBell from "../components/NotificationBell";
-import { fetchMyProfileApi, fetchUserProfilesApi, fetchSentRequestsApi, sendFriendRequestApi } from "../api/api";
+import { fetchMyProfileApi, fetchUserProfilesApi, fetchSentRequestsApi, sendFriendRequestApi, fetchReferralSummaryApi } from "../api/api";
 import { getSession, clearSession, withPhotoVersion } from "../api/authSession";
 import { maskName } from "../utils/nameMask";
 
@@ -77,6 +77,8 @@ const DashboardScreen = ({ navigation, route }) => {
   const [matchCount, setMatchCount] = useState("—");
   const [sendingInterestId, setSendingInterestId] = useState(null);
   const [sentIds, setSentIds] = useState(new Set());
+  const [refSummary, setRefSummary] = useState(null);
+  const [showReferBanner, setShowReferBanner] = useState(false);
 
   const isPremiumActive = (p) => {
     if (!p) return false;
@@ -107,9 +109,10 @@ const DashboardScreen = ({ navigation, route }) => {
         setProfile(res.data);
         const targetGender = getOppositeGender(res.data);
 
-        const [profilesRes, sentRes] = await Promise.all([
+        const [profilesRes, sentRes, referralRes] = await Promise.all([
           fetchUserProfilesApi(),
           fetchSentRequestsApi(userId).catch(() => ({ data: [] })),
+          fetchReferralSummaryApi().catch(() => null),
         ]);
 
         const sentSet = new Set(
@@ -155,6 +158,14 @@ const DashboardScreen = ({ navigation, route }) => {
         setNewProfiles(filtered);
 
         setMatchCount(genderFiltered.length.toString());
+
+        if (referralRes && referralRes.data) {
+          const data = referralRes.data;
+          setRefSummary(data);
+          if (data.completedReferrals < data.totalReferralsNeeded) {
+            setShowReferBanner(true);
+          }
+        }
       } catch (e) {
         setError("Failed to load profile.");
       } finally {
@@ -379,6 +390,31 @@ const DashboardScreen = ({ navigation, route }) => {
       )}
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {showReferBanner && refSummary && (
+          <View style={styles.referBanner}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.referTitle}>Refer &amp; Earn</Text>
+              <Text style={styles.referText}>
+                Invite 2 friends and get ₹100 off. Progress:{" "}
+                {refSummary.completedReferrals}/{refSummary.totalReferralsNeeded}
+              </Text>
+            </View>
+            <View style={{ alignItems: "flex-end", gap: 6 }}>
+              <TouchableOpacity
+                style={styles.referCta}
+                onPress={() => {
+                  setShowReferBanner(false);
+                  navigation.navigate("ReferAndEarn");
+                }}
+              >
+                <Text style={styles.referCtaText}>Invite Now</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setShowReferBanner(false)}>
+                <Text style={styles.referSkip}>Maybe later</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Top Matches</Text>
@@ -762,6 +798,25 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   retryText: { color: "#fff", fontWeight: "700" },
+  referBanner: {
+    backgroundColor: "#fef3c7",
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    columnGap: 10,
+  },
+  referTitle: { fontSize: 14, fontWeight: "800", color: "#92400e" },
+  referText: { fontSize: 12, color: "#92400e", marginTop: 2 },
+  referCta: {
+    backgroundColor: "#f973b5",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  referCtaText: { color: "#fff", fontWeight: "800", fontSize: 12 },
+  referSkip: { fontSize: 11, color: "#92400e" },
 });
 
 export default DashboardScreen;

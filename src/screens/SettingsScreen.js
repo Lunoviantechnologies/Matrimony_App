@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { SafeAreaView, View, Text, StyleSheet, Switch, ActivityIndicator, ScrollView } from "react-native";
-import { fetchLatestPaymentApi, fetchPaymentHistoryApi } from "../api/api";
+import { SafeAreaView, View, Text, StyleSheet, Switch, ActivityIndicator, ScrollView, TouchableOpacity } from "react-native";
+import { fetchLatestPaymentApi, fetchPaymentHistoryApi, fetchReferralSummaryApi } from "../api/api";
 import { getSession } from "../api/authSession";
 
-const SettingsScreen = () => {
+const SettingsScreen = ({ navigation }) => {
   const [notifications, setNotifications] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const [loadingPayment, setLoadingPayment] = useState(true);
@@ -12,6 +12,8 @@ const SettingsScreen = () => {
   const [history, setHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [historyError, setHistoryError] = useState("");
+  const [refSummary, setRefSummary] = useState(null);
+  const [loadingReferral, setLoadingReferral] = useState(true);
 
   useEffect(() => {
     const loadPayment = async () => {
@@ -48,6 +50,18 @@ const SettingsScreen = () => {
       }
     };
     loadHistory();
+
+    const loadReferral = async () => {
+      try {
+        const res = await fetchReferralSummaryApi();
+        setRefSummary(res.data);
+      } catch (e) {
+        // ignore
+      } finally {
+        setLoadingReferral(false);
+      }
+    };
+    loadReferral();
   }, []);
 
   return (
@@ -66,6 +80,35 @@ const SettingsScreen = () => {
           <Text style={[styles.note, darkMode && styles.noteDark]}>
             These toggles are local only. Hook to backend when ready.
           </Text>
+
+          <View style={[styles.divider, darkMode && styles.dividerDark]} />
+          <Text style={[styles.sectionTitle, darkMode && styles.sectionTitleDark]}>Refer &amp; Earn</Text>
+          {loadingReferral ? (
+            <View style={styles.statusRow}>
+              <ActivityIndicator size="small" color={darkMode ? "#f973b5" : "#f973b5"} />
+              <Text style={[styles.statusText, darkMode && styles.statusTextDark]}>Loading...</Text>
+            </View>
+          ) : refSummary ? (
+            <View style={[styles.statusCard, darkMode && styles.statusCardDark]}>
+              <Text style={styles.statusActive}>Invite friends &amp; earn ₹100</Text>
+              <Text style={[styles.statusDetail, darkMode && styles.statusDetailDark]}>
+                Progress: {refSummary.completedReferrals}/{refSummary.totalReferralsNeeded} referrals completed
+              </Text>
+              <Text style={[styles.statusDetail, darkMode && styles.statusDetailDark]}>
+                Reward balance: ₹{refSummary.rewardBalance ?? 0}
+              </Text>
+              <TouchableOpacity
+                style={[styles.primaryBtn]}
+                onPress={() => navigation.navigate("ReferAndEarn")}
+              >
+                <Text style={styles.primaryBtnText}>View Refer &amp; Earn</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <Text style={[styles.statusDetail, darkMode && styles.statusDetailDark]}>
+              Refer &amp; Earn details are not available.
+            </Text>
+          )}
 
           <View style={[styles.divider, darkMode && styles.dividerDark]} />
           <Text style={[styles.sectionTitle, darkMode && styles.sectionTitleDark]}>Premium Status</Text>
@@ -214,6 +257,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   statusPillText: { fontWeight: "800", color: "#0f172a", fontSize: 12 },
+  primaryBtn: {
+    marginTop: 10,
+    backgroundColor: "#f973b5",
+    borderRadius: 999,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  primaryBtnText: { color: "#fff", fontWeight: "800" },
 });
 
 export default SettingsScreen;
