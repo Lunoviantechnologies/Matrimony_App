@@ -84,6 +84,14 @@ export const deleteSentRequestApi = (requestId) =>
 export const fetchChatConversationApi = (senderId, receiverId, page = 0, size = 50) =>
   axiosInstance.get(`/api/chat/conversation/${senderId}/${receiverId}?page=${page}&size=${size}`);
 
+// GET /api/chat/online -> list of online user IDs
+export const fetchOnlineUsersApi = () =>
+  axiosInstance.get("/api/chat/online");
+
+// POST /api/chat/seen/{senderId}/{receiverId} -> mark messages as seen
+export const markChatSeenApi = (senderId, receiverId) =>
+  axiosInstance.post(`/api/chat/seen/${senderId}/${receiverId}`);
+
 // POST /api/chat/send/{senderId}/{receiverId}
 export const sendChatMessageApi = (senderId, receiverId, message) =>
   axiosInstance.post(`/api/chat/send/${senderId}/${receiverId}`, { message });
@@ -135,3 +143,13 @@ export const fetchReferralSummaryApi = () =>
 
 export const useReferralCodeApi = (referralCode) =>
   axiosInstance.post("/api/referrals/use-code", { referralCode });
+
+// ==========================
+// LOCATIONS (for register)
+// ==========================
+
+export const fetchCountriesApi = () =>
+  axiosInstance.get("/api/locations/countries");
+
+export const fetchStatesByCountryApi = (countryId) =>
+  axiosInstance.get(`/api/locations/states/${countryId}`);

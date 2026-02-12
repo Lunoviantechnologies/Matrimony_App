@@ -22,6 +22,8 @@ import {
   clearChatApi,
   getBlockStatusApi,
   unblockUserApi,
+  fetchOnlineUsersApi,
+  markChatSeenApi,
 } from "../api/api";
 
 const ChatWindowScreen = () => {
@@ -41,32 +43,76 @@ const ChatWindowScreen = () => {
   const [isBlocked, setIsBlocked] = useState(false);
   const [iBlocked, setIBlocked] = useState(false);
   const [isReported, setIsReported] = useState(false);
+  const [isOnline, setIsOnline] = useState(false);
 
+  // Initial load + periodic auto-refresh (messages + online status)
   useEffect(() => {
-    const load = async () => {
+    let isCancelled = false;
+
+    const loadOnce = async () => {
       if (!userId || !otherId) {
-        setLoading(false);
+        if (!isCancelled) setLoading(false);
         return;
       }
       try {
-        const [convRes, statusRes] = await Promise.all([
+        const [convRes, statusRes, onlineRes] = await Promise.all([
           fetchChatConversationApi(userId, otherId, 0, 200),
           getBlockStatusApi(userId, otherId),
+          fetchOnlineUsersApi(),
         ]);
-        const list = convRes.data?.content || convRes.data || [];
-        setMessages(Array.isArray(list) ? list : []);
 
-        const status = statusRes.data || {};
-        setIsBlocked(!!status.blocked);
-        setIBlocked(!!status.iBlocked);
+        const list = convRes.data?.content || convRes.data || [];
+        if (!isCancelled) {
+          setMessages(Array.isArray(list) ? list : []);
+
+          const status = statusRes.data || {};
+          setIsBlocked(!!status.blocked);
+          setIBlocked(!!status.iBlocked);
+
+          const onlineIds = Array.isArray(onlineRes?.data)
+            ? onlineRes.data.map((id) => Number(id))
+            : [];
+          setIsOnline(onlineIds.includes(Number(otherId)));
+        }
       } catch (e) {
-        console.log("chat window load error:", e?.response?.data || e?.message);
+        if (!isCancelled) {
+          console.log("chat window load error:", e?.response?.data || e?.message);
+          setIsOnline(false);
+        }
       } finally {
-        setLoading(false);
+        if (!isCancelled) setLoading(false);
       }
     };
-    load();
+
+    loadOnce();
+
+    // Auto-refresh every 5 seconds while on this screen
+    const intervalId = setInterval(loadOnce, 5000);
+
+    return () => {
+      isCancelled = true;
+      clearInterval(intervalId);
+    };
   }, [userId, otherId]);
+
+  // When we see messages from the other user that are not marked seen,
+  // notify backend so ticks update for them (and for us on next refresh).
+  useEffect(() => {
+    if (!userId || !otherId || !Array.isArray(messages) || messages.length === 0) return;
+
+    const hasUnseenFromOther = messages.some(
+      (m) =>
+        Number(m.senderId) === Number(otherId) &&
+        Number(m.receiverId) === Number(userId) &&
+        !m.seen
+    );
+
+    if (!hasUnseenFromOther) return;
+
+    markChatSeenApi(otherId, userId).catch(() => {
+      // Ignore seen errors on mobile
+    });
+  }, [messages, userId, otherId]);
 
   const handleSend = async () => {
     if (!draft.trim() || !userId || !otherId || iBlocked) return;
@@ -74,6 +120,7 @@ const ChatWindowScreen = () => {
       setSending(true);
       await sendChatMessageApi(userId, otherId, draft.trim());
       setDraft("");
+      // Optimistic refresh – fetch latest conversation
       const res = await fetchChatConversationApi(userId, otherId, 0, 200);
       const list = res.data?.content || res.data || [];
       setMessages(Array.isArray(list) ? list : []);
@@ -86,11 +133,17 @@ const ChatWindowScreen = () => {
 
   const renderMessage = ({ item }) => {
     const mine = Number(item.senderId) === Number(userId);
+    const time = item.timestamp ? new Date(item.timestamp).toLocaleTimeString() : "";
     return (
       <View style={[styles.msgBubble, mine ? styles.msgMine : styles.msgTheirs]}>
         <Text style={styles.msgText}>{item.message}</Text>
         <Text style={styles.msgTime}>
-          {item.timestamp ? new Date(item.timestamp).toLocaleTimeString() : ""}
+          {time}
+          {mine && (
+            <Text style={item.seen ? styles.seenTick : styles.sentTick}>
+              {item.seen ? " ✔✔" : " ✔"}
+            </Text>
+          )}
         </Text>
       </View>
     );
@@ -189,7 +242,9 @@ const ChatWindowScreen = () => {
             )}
             <View style={styles.headerTextBlock}>
               <Text style={styles.title}>{otherName}</Text>
-              <Text style={styles.subtitle}>Tap to view profile</Text>
+              <Text style={styles.subtitle}>
+                {isOnline ? "Online" : "Offline"}
+              </Text>
             </View>
           </View>
           <TouchableOpacity
@@ -366,6 +421,8 @@ const styles = StyleSheet.create({
   msgTheirs: { backgroundColor: "#e5e7eb", alignSelf: "flex-start" },
   msgText: { color: "#1f2933" },
   msgTime: { color: "#6b6a7a", fontSize: 10, marginTop: 4 },
+  sentTick: { fontSize: 10, color: "#6b7280" },
+  seenTick: { fontSize: 10, color: "#16a34a" },
   empty: { textAlign: "center", color: "#4b4a5f", marginTop: 20 },
   inputRow: {
     flexDirection: "row",

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState,useEffect } from "react";
 import {
   View,
   Text,
@@ -13,7 +13,13 @@ import {
   ImageBackground,
 } from "react-native";
 import { launchImageLibrary } from "react-native-image-picker";
-import { registerApi, sendRegistrationOtpApi, verifyRegistrationOtpApi } from "../api/api";
+import {
+  registerApi,
+  sendRegistrationOtpApi,
+  verifyRegistrationOtpApi,
+  fetchCountriesApi,
+  fetchStatesByCountryApi,
+} from "../api/api";
 
 const steps = [
   "Profile",
@@ -29,11 +35,294 @@ const steps = [
 
 const profileForOptions = ["Myself", "My Son", "My Daughter", "My Brother", "My Sister", "My Friend", "My Relative"];
 const genderOptions = ["Male", "Female"];
-const religionOptions = ["Hindu", "Muslim", "Christian", "Sikh", "Jain", "Buddhist", "Jewish"];
+// Align high-level religions with web app; detailed Jain variants handled in sub-community lists
+const religionOptions = ["Hindu", "Muslim", "Christian", "Sikh", "Jain", "Buddhist", "Jewish", "No Religion", "Inter-Religion"];
 const motherTongueOptions = ["Hindi", "Bengali", "Telugu", "Marathi", "Tamil", "Urdu", "Gujarati", "Kannada", "Odia", "Malayalam", "Punjabi", "Assamese", "Konkani", "Sindhi", "Nepali", "Kashmiri", "Manipuri", "English"];
-const casteOptions = ["BC", "OC", "SC & ST", "OBC"];
 const countryOptions = ["India", "USA", "UK", "Canada", "Australia"];
 const maritalStatusOptions = ["Single", "Divorced", "Separated", "Widowed"];
+const residenceStatusOptions = ["Citizen", "NRI", "H1", "Green Card"];
+const livingStatusOptions = ["Staying with parents", "Living separately"];
+
+// ===== Sub-community lists (same as web Register.jsx) =====
+const hinduSubCommunityList = [
+  "Anavil Brahmin",
+  "Audichya Brahmin",
+  "Ayodhi",
+  "Balija",
+  "Balija Naidu",
+  "Balija Setty",
+  "Barendra Brahmin",
+  "Bhoomanchi Reddy",
+  "Boyar Kapu",
+  "Brahmin – Not Specified",
+  "Chitpavan Brahmin",
+  "Chowdary",
+  "Coastal Kapu",
+  "Dakshina Kapu",
+  "Deshastha Brahmin",
+  "Desuru",
+  "Dravida Brahmin",
+  "Gandla",
+  "Ganjam",
+  "Gaur Brahmin",
+  "Gavara",
+  "Gavara Naidu",
+  "General Kapu",
+  "Golla Kapu",
+  "Gone Kapu",
+  "Goud Saraswat Brahmin",
+  "Gudati",
+  "Havyaka Brahmin",
+  "Iyengar",
+  "Iyer",
+  "Kalinga Brahmin",
+  "Kalinga Kapu",
+  "Kamma Kapu",
+  "Kanyakubja Brahmin",
+  "Kapu",
+  "Kapu Naicker",
+  "Kapu Reddy",
+  "Kapu Velama",
+  "Karanakamma Brahmin",
+  "Karhade Brahmin",
+  "Khedaval Brahmin",
+  "Konkani Brahmin",
+  "Kota Brahmin",
+  "Kulin Brahmin",
+  "Kuruba Kapu",
+  "Maithil Brahmin",
+  "Madhwa Brahmin",
+  "Modh Brahmin",
+  "Motati",
+  "Mulakanadu Brahmin",
+  "Munnuru Kapu",
+  "Nagar Brahmin",
+  "Naidu Kapu",
+  "Namboodiri",
+  "Niyogi Brahmin",
+  "Ontari",
+  "Ontari Kapu",
+  "Other Brahmin",
+  "Other Kapu Sub-Caste",
+  "Others",
+  "Palle",
+  "Palnati",
+  "Panta",
+  "Pedakanti",
+  "Poknati",
+  "Pushkarna Brahmin",
+  "Rarhi Brahmin",
+  "Rayalaseema Kapu",
+  "Reddiyar",
+  "Sajjana",
+  "Sakaldwipi Brahmin",
+  "Sanadhya Brahmin",
+  "Saraswat Brahmin",
+  "Saryuparin Brahmin",
+  "Shrimali Brahmin",
+  "Shivalli Brahmin",
+  "Smartha Brahmin",
+  "Telaga",
+  "Telaga Kapu",
+  "Tulu Brahmin",
+  "Turpu Kapu",
+  "Tyagi Brahmin",
+  "Uttara Kapu",
+  "Vaidiki Brahmin",
+  "Vanni",
+  "Velanadu Brahmin",
+  "Velanati",
+].sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" }));
+
+const muslimCommunityList = [
+  "Shia",
+  "Sunni",
+  "Ansari",
+  "Arain",
+  "Awan",
+  "Bohra",
+  "Dekkani",
+  "Dudekula",
+  "Hanafi",
+  "Jat",
+  "Khoja",
+  "Lebbai",
+  "Malik",
+  "Mapila",
+  "Maraicar",
+  "Memon",
+  "Mughal",
+  "Pathan",
+  "Qureshi",
+  "Rajput",
+  "Rowther",
+  "Shafi",
+  "Sheikh",
+  "Siddiqui",
+  "Syed",
+  "Others",
+  "UnSpecified",
+  "Other Caste",
+  "Don't wish to specify",
+];
+
+const jainDigambarCommunityList = [
+  "Jain - Agarwal",
+  "Jain - Asati",
+  "Jain - Ayodhyavasi",
+  "Jain - Bagherwal",
+  "Jain - Bania",
+  "Jain - Barhiya",
+  "Jain - Charanagare",
+  "Jain - Chaturtha",
+  "Jain - Dhakada",
+  "Jain - Gahoi / Grihapati",
+  "Jain - Golalare / Kharaua",
+  "Jain - Golapurva",
+  "Jain - Golsinghare",
+  "Jain - Harada",
+  "Jain - Humad / Humbad",
+  "Jain - Intercaste",
+  "Jain - Jaiswal",
+  "Jain - KVO",
+  "Jain - Kambhoja",
+  "Jain - Kasar",
+  "Jain - Kathanere",
+  "Jain - Khandelwal",
+  "Jain - Kharaua",
+  "Jain - Kutchi",
+  "Jain - Lamechu",
+  "Jain - Nema",
+  "Jain - Oswal",
+  "Jain - Padmavati Porwal",
+  "Jain - Palliwar",
+  "Jain - Panchama",
+  "Jain - Parmar",
+  "Jain - Parwar / Paravara",
+  "Jain - Porwad / Porwal",
+  "Jain - Porwal",
+  "Jain - Saitwal",
+  "Jain - Samanar / Nayinar",
+  "Jain - Samiya",
+  "Jain - Sarak",
+  "Jain - Shrimali",
+  "Jain - Upadhyaya",
+  "Jain - Vaishya",
+  "Jain - Veerwal",
+  "Jain - Others",
+  "Jain - Unspecified",
+  "Other Caste",
+  "Don’t wish to specify",
+];
+
+const sikhFullCommunityList = [
+  "Jat Sikh",
+  "Khatri Sikh",
+  "Arora Sikh",
+  "Ramgarhia",
+  "Ahluwalia",
+  "Mazhabi Sikh",
+  "Ravidassia",
+  "Labana",
+  "Saini Sikh",
+  "Bhatra Sikh",
+  "Nai Sikh",
+  "Ravidasia Sikh",
+  "Valmiki Sikh",
+  "Sikh – Others",
+  "Sikh – Not Specified",
+];
+
+const christianCasteList = [
+  "Mala",
+  "Madiga",
+  "Adi Andhra",
+  "Adi Dravida",
+  "Adi Karnataka",
+  "Pulaya",
+  "Paraiyar",
+  "Sambava",
+  "Pallan / Devandra Kula Vellalar",
+  "Rohit / Chamar",
+  "Kapu Christian",
+  "Reddy Christian",
+  "Balija Christian",
+  "Telaga Christian",
+  "Velama Christian",
+  "Kamma Christian",
+  "Gavara Christian",
+  "Goud Christian",
+  "Yadava Christian",
+  "Vaddera Christian",
+  "Perika Christian",
+  "Kummari Christian",
+  "Rajaka / Vannar Christian",
+  "Brahmin Christian",
+  "Kshatriya Christian",
+  "Vaishya Christian",
+  "Latin Christian",
+  "Syrian Christian",
+  "Knanaya Christian",
+  "Anglo-Indian Christian",
+  "Christian – Others",
+  "Christian – No Caste",
+  "Christian – Not Specified",
+];
+
+const jainShwetambarCommunityList = [
+  "Jain - Oswal",
+  "Jain - Porwal",
+  "Jain - Shrimali",
+  "Jain - Khandelwal",
+  "Jain - Agarwal",
+  "Jain - Kutchi",
+  "Jain - Others",
+  "Jain - Unspecified",
+  "Don’t wish to specify",
+];
+
+const buddhistCommunityList = [
+  "Theravada",
+  "Mahayana",
+  "Vajrayana",
+  "Navayana",
+  "Buddhist – Others",
+  "Buddhist – Not Specified",
+];
+
+const jewishCommunityList = [
+  "Ashkenazi",
+  "Sephardi",
+  "Mizrahi",
+  "Jewish – Others",
+  "Jewish – Not Specified",
+];
+
+const noReligionCommunityList = [
+  "No Religion",
+  "Atheist",
+  "Agnostic",
+  "Spiritual but not religious",
+];
+
+const interReligionCommunityList = [
+  "Inter-Religion",
+  "Inter-Caste",
+  "Mixed Religion Family",
+];
+
+const religionSubCommunityMap = {
+  Hindu: hinduSubCommunityList,
+  Muslim: muslimCommunityList,
+  Christian: christianCasteList,
+  Sikh: sikhFullCommunityList,
+  Jain: [...jainDigambarCommunityList, ...jainShwetambarCommunityList],
+  Buddhist: buddhistCommunityList,
+  Jewish: jewishCommunityList,
+  "No Religion": noReligionCommunityList,
+  "Inter-Religion": interReligionCommunityList,
+};
+
 const educationOptions = ["10th", "12th / Intermediate", "Diploma", "B.A", "B.Sc", "B.Com", "B.E / B.Tech", "MBBS", "LLB", "M.A", "M.Sc", "M.Com", "M.E / M.Tech", "MBA", "MCA", "CA", "CS", "ICWA", "PhD"];
 const sectorOptions = ["Government / PSU", "Private", "Business", "Self-Employed / Freelancer", "Defense / Armed Forces", "Not Working"];
 const annualIncomeOptions = [
@@ -61,6 +350,9 @@ const RegisterScreen = ({ navigation }) => {
   const [otpVerifying, setOtpVerifying] = useState(false);
   const [showOtpField, setShowOtpField] = useState(false);
 
+  const [countries, setCountries] = useState([]);
+  const [states, setStates] = useState([]);
+
   const [form, setForm] = useState({
     profileFor: "",
     gender: "",
@@ -75,8 +367,12 @@ const RegisterScreen = ({ navigation }) => {
     subCaste: "",
     motherTongue: "",
     country: "",
+    state: "",
+    district: "",
+    residenceStatus: "",
     city: "",
     maritalStatus: "",
+    livingStatus: "",
     noOfChildren: "",
     height: "",
     heightLabel: "",
@@ -96,6 +392,54 @@ const RegisterScreen = ({ navigation }) => {
   });
 
   const onChange = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
+
+  const updateAgeFromDob = (nextDay, nextMonth, nextYear) => {
+    const d = Number(nextDay);
+    const m = Number(nextMonth);
+    const y = Number(nextYear);
+    if (!Number.isInteger(d) || !Number.isInteger(m) || !Number.isInteger(y)) return;
+    if (!d || !m || !y) return;
+
+    // Basic range checks (same idea as handleRegister)
+    const thisYear = new Date().getFullYear();
+    if (y < 1900 || y > thisYear || m < 1 || m > 12 || d < 1 || d > 31) {
+      // Invalid DOB → clear age instead of setting a wrong value
+      setForm((prev) => ({ ...prev, age: "" }));
+      return;
+    }
+
+    const dob = new Date(y, m - 1, d);
+    if (Number.isNaN(dob.getTime())) {
+      setForm((prev) => ({ ...prev, age: "" }));
+      return;
+    }
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const mm = today.getMonth() - dob.getMonth();
+    if (mm < 0 || (mm === 0 && today.getDate() < dob.getDate())) {
+      age--;
+    }
+    // Only accept realistic ages (18–60 like web)
+    if (age >= 18 && age <= 60) {
+      setForm((prev) => ({ ...prev, age: String(age) }));
+    } else {
+      setForm((prev) => ({ ...prev, age: "" }));
+    }
+  };
+
+  // Load countries once (like web)
+  useEffect(() => {
+    const loadCountries = async () => {
+      try {
+        const res = await fetchCountriesApi();
+        setCountries(Array.isArray(res?.data) ? res.data : []);
+      } catch (e) {
+        console.log("countries load error:", e?.response?.data || e?.message);
+        setCountries([]);
+      }
+    };
+    loadCountries();
+  }, []);
 
   const currentErrors = useMemo(() => {
     const e = {};
@@ -119,12 +463,24 @@ const RegisterScreen = ({ navigation }) => {
     } else if (step === 2) {
       if (!form.religion) e.religion = "Required";
       if (!form.motherTongue) e.motherTongue = "Required";
-      if (!form.caste) e.caste = "Required";
       if (!form.subCaste) e.subCaste = "Required";
     } else if (step === 3) {
       if (!form.country) e.country = "Required";
+      if (!form.state) e.state = "Required";
+      if (!form.district) e.district = "Required";
       if (!form.city) e.city = "Required";
       if (!form.maritalStatus) e.maritalStatus = "Required";
+      // Residence status required only for non-India countries (like web)
+      if (form.country && form.country !== "India" && !form.residenceStatus) {
+        e.residenceStatus = "Required";
+      }
+      // Living status required only for divorced / separated / widowed
+      if (
+        ["Divorced", "Separated", "Widowed"].includes(form.maritalStatus) &&
+        !form.livingStatus
+      ) {
+        e.livingStatus = "Required";
+      }
     } else if (step === 4) {
       if (!form.height) e.height = "Required";
     } else if (step === 5) {
@@ -265,11 +621,15 @@ const RegisterScreen = ({ navigation }) => {
       dateOfBirth,
       religion: form.religion || null,
       caste: form.caste || null,
-      subCaste: form.subCaste || null,
+    subCaste: form.subCaste === "Others" ? form.subCasteOther || null : form.subCaste || null,
       motherTongue: form.motherTongue || null,
       country: form.country || null,
+      state: form.state || null,
+      district: form.district || null,
+      residenceStatus: form.residenceStatus || null,
       city: form.city || null,
       maritalStatus: form.maritalStatus || null,
+      livingStatus: form.livingStatus || null,
       noOfChildren: form.noOfChildren ? Number(form.noOfChildren) : null,
       height: form.height || null,
       highestEducation: form.highestEducation || null,
@@ -283,6 +643,7 @@ const RegisterScreen = ({ navigation }) => {
       mobileNumber: form.mobileNumber || null,
       createPassword: form.createPassword || null,
       role: form.role || "USER",
+      signupReferralCode: form.signupReferralCode || null,
     };
 
     setLoading(true);
@@ -313,6 +674,9 @@ const RegisterScreen = ({ navigation }) => {
         return (
           <>
             <SectionTitle title="Profile is for" />
+            <RowInput label="Referral code" value={form.signupReferralCode} onChange={(v) => onChange("signupReferralCode", v)} />
+            
+            
             <SelectChips
               options={profileForOptions}
               value={form.profileFor}
@@ -337,9 +701,33 @@ const RegisterScreen = ({ navigation }) => {
             <RowInput label="Age" value={form.age} onChange={(v) => onChange("age", v)} keyboardType="number-pad" />
             <SectionTitle title="Date of birth" />
             <View style={styles.row}>
-              <SmallInput placeholder="DD" value={form.dobDay} onChange={(v) => onChange("dobDay", v)} keyboardType="number-pad" />
-              <SmallInput placeholder="MM" value={form.dobMonth} onChange={(v) => onChange("dobMonth", v)} keyboardType="number-pad" />
-              <SmallInput placeholder="YYYY" value={form.dobYear} onChange={(v) => onChange("dobYear", v)} keyboardType="number-pad" />
+              <SmallInput
+                placeholder="DD"
+                value={form.dobDay}
+                onChange={(v) => {
+                  onChange("dobDay", v);
+                  updateAgeFromDob(v, form.dobMonth, form.dobYear);
+                }}
+                keyboardType="number-pad"
+              />
+              <SmallInput
+                placeholder="MM"
+                value={form.dobMonth}
+                onChange={(v) => {
+                  onChange("dobMonth", v);
+                  updateAgeFromDob(form.dobDay, v, form.dobYear);
+                }}
+                keyboardType="number-pad"
+              />
+              <SmallInput
+                placeholder="YYYY"
+                value={form.dobYear}
+                onChange={(v) => {
+                  onChange("dobYear", v);
+                  updateAgeFromDob(form.dobDay, form.dobMonth, v);
+                }}
+                keyboardType="number-pad"
+              />
             </View>
           </>
         );
@@ -347,18 +735,88 @@ const RegisterScreen = ({ navigation }) => {
         return (
           <>
             <SectionTitle title="Community" />
-            <DropdownSelect label="Religion" options={religionOptions} value={form.religion} onSelect={(v) => onChange("religion", v)} />
+            <DropdownSelect
+              label="Religion"
+              options={religionOptions}
+              value={form.religion}
+              onSelect={(v) => {
+                // When religion changes, clear dependent fields so UI refreshes like web
+                onChange("religion", v);
+                onChange("subCaste", "");
+                onChange("subCasteOther", "");
+              }}
+            />
             <DropdownSelect label="Mother tongue" options={motherTongueOptions} value={form.motherTongue} onSelect={(v) => onChange("motherTongue", v)} />
-            <DropdownSelect label="Caste" options={casteOptions} value={form.caste} onSelect={(v) => onChange("caste", v)} />
-            <RowInput label="Sub caste" value={form.subCaste} onChange={(v) => onChange("subCaste", v)} />
+            <DropdownSelect
+              label="Sub-Community"
+              options={[
+                "No particular caste",
+                ...(religionSubCommunityMap[form.religion] || []),
+              ]}
+              value={form.subCaste}
+              onSelect={(v) => {
+                onChange("subCaste", v);
+                if (v !== "Others") {
+                  onChange("subCasteOther", "");
+                }
+              }}
+            />
+            {form.subCaste === "Others" && (
+              <RowInput
+                label="Enter Sub-Community"
+                value={form.subCasteOther}
+                onChange={(v) => onChange("subCasteOther", v)}
+              />
+            )}
           </>
         );
       case 3:
         return (
           <>
             <SectionTitle title="Location" />
-            <DropdownSelect label="Country" options={countryOptions} value={form.country} onSelect={(v) => onChange("country", v)} />
+            <DropdownSelect
+              label="Country"
+              options={countries.map((c) => c.name)}
+              value={form.country}
+              onSelect={async (name) => {
+                onChange("country", name);
+                onChange("state", "");
+                onChange("district", "");
+                onChange("city", "");
+                try {
+                  const countryObj = countries.find((c) => c.name === name);
+                  if (countryObj?.id) {
+                    const res = await fetchStatesByCountryApi(countryObj.id);
+                    setStates(Array.isArray(res?.data) ? res.data : []);
+                  } else {
+                    setStates([]);
+                  }
+                } catch (e) {
+                  console.log("states load error:", e?.response?.data || e?.message);
+                  setStates([]);
+                }
+              }}
+            />
+            <DropdownSelect
+              label="State"
+              options={states.map((s) => s.name)}
+              value={form.state}
+              onSelect={(v) => onChange("state", v)}
+            />
+            <RowInput
+              label="District"
+              value={form.district}
+              onChange={(v) => onChange("district", v)}
+            />
             <RowInput label="City" value={form.city} onChange={(v) => onChange("city", v)} />
+            {form.country && form.country !== "India" && (
+              <DropdownSelect
+                label="Residence status"
+                options={residenceStatusOptions}
+                value={form.residenceStatus}
+                onSelect={(v) => onChange("residenceStatus", v)}
+              />
+            )}
             <DropdownSelect
               label="Marital status"
               options={maritalStatusOptions}
@@ -368,6 +826,14 @@ const RegisterScreen = ({ navigation }) => {
                 if (v === "Single") onChange("noOfChildren", "");
               }}
             />
+            {["Divorced", "Separated", "Widowed"].includes(form.maritalStatus) && (
+              <DropdownSelect
+                label="Living status"
+                options={livingStatusOptions}
+                value={form.livingStatus}
+                onSelect={(v) => onChange("livingStatus", v)}
+              />
+            )}
             <RowInput
               label="No. of children"
               value={form.noOfChildren}
@@ -432,6 +898,12 @@ const RegisterScreen = ({ navigation }) => {
               keyboardType="phone-pad"
             />
             <RowInput label="Password" value={form.createPassword} onChange={(v) => onChange("createPassword", v)} secureTextEntry />
+            <RowInput
+              label="Referral code (optional)"
+              value={form.signupReferralCode}
+              onChange={(v) => onChange("signupReferralCode", v)}
+              autoCapitalize="characters"
+            />
           </>
         );
       case 8:
