@@ -1,13 +1,17 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { SafeAreaView, Text, FlatList, View, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
-import axiosInstance from "../api/axiosInstance";
+import {
+  fetchFriendRequestsFilterApi,
+  respondToFriendRequestApi,
+  fetchMyProfileApi,
+  getAbsolutePhotoUrl,
+} from "../api/api";
 import { getSession } from "../api/authSession";
 import { maskName } from "../utils/nameMask";
 
 const RequestsScreen = () => {
   const { userId } = getSession();
   const [received, setReceived] = useState([]);
-  const [profiles, setProfiles] = useState([]);
   const [me, setMe] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -16,16 +20,14 @@ const RequestsScreen = () => {
       if (!userId) return;
       setLoading(true);
       try {
-        const [rec, all, mine] = await Promise.all([
-          axiosInstance.get(`/api/friends/received/${userId}`),
-          axiosInstance.get("/api/profiles/Allprofiles"),
-          axiosInstance.get(`/api/profiles/myprofiles/${userId}`),
+        const [recRes, mineRes] = await Promise.all([
+          fetchFriendRequestsFilterApi(userId, "received"),
+          fetchMyProfileApi(userId),
         ]);
-        setReceived(rec.data || []);
-        setProfiles(Array.isArray(all.data) ? all.data : []);
-        setMe(mine.data);
+        setReceived(Array.isArray(recRes.data) ? recRes.data : []);
+        setMe(mineRes?.data ?? null);
       } catch (e) {
-        console.log("received load error:", e?.response?.data || e?.message);
+        if (__DEV__) console.log("received load error:", e?.response?.data || e?.message);
       } finally {
         setLoading(false);
       }
@@ -35,11 +37,10 @@ const RequestsScreen = () => {
 
   const handleRespond = async (requestId, status) => {
     try {
-      // backend expects accept boolean query param
-      await axiosInstance.post(`/api/friends/respond/${requestId}?accept=${status === "accept"}`);
+      await respondToFriendRequestApi(requestId, status === "accept");
       setReceived((prev) => prev.filter((r) => r.requestId !== requestId));
     } catch (e) {
-      console.log("respond error:", e?.response?.data || e?.message);
+      if (__DEV__) console.log("respond error:", e?.response?.data || e?.message);
     }
   };
 
@@ -52,17 +53,13 @@ const RequestsScreen = () => {
   }, [me]);
 
   const renderItem = ({ item }) => {
-    const otherProfile = profiles.find((p) => p.id === item.senderId);
+    const profile = item.profile;
+    const displayName = profile?.name?.trim() || "User";
+    const nameToShow = premiumActive ? displayName : maskName(profile?.name?.split(" ")[0], profile?.name?.split(" ").slice(1).join(" "));
     return (
       <View style={styles.card}>
-        <Text style={styles.name}>
-          {otherProfile
-            ? premiumActive
-              ? `${(otherProfile.firstName || "").trim()} ${(otherProfile.lastName || "").trim()}`.trim() || "User"
-              : maskName(otherProfile.firstName, otherProfile.lastName)
-            : item.senderName || "User"}
-        </Text>
-        <Text style={styles.meta}>{otherProfile?.city || "—"}</Text>
+        <Text style={styles.name}>{nameToShow}</Text>
+        <Text style={styles.meta}>{profile?.city || "—"}</Text>
         <View style={styles.actions}>
           <TouchableOpacity style={styles.accept} onPress={() => handleRespond(item.requestId, "accept")}>
             <Text style={styles.btnText}>Accept</Text>

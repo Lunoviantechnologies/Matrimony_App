@@ -30,7 +30,7 @@ const PremiumSubscription = ({ navigation }) => {
       try {
         const res = await fetchPlansApi();
         const data = Array.isArray(res.data) ? res.data : [];
-        console.log("plans api response length:", data);
+        if (__DEV__) console.log("plans api response length:", data);
         setPlans(
           data.map((p) => ({
             id: p.planCode || p.plan_code || p.id || p.name,
@@ -55,7 +55,7 @@ const PremiumSubscription = ({ navigation }) => {
         );
       } catch (e) {
         const msg = e?.response?.data || e?.message || "Failed to load plans";
-        console.error("plans api error:", e?.response?.status, msg);
+        if (__DEV__) console.error("plans api error:", e?.response?.status, msg);
         setError(typeof msg === "string" ? msg : "Failed to load plans");
       } finally {
         setLoading(false);
@@ -177,15 +177,14 @@ const PremiumSubscription = ({ navigation }) => {
         razorpay_signature,
       });
 
-      Alert.alert("Payment successful", "Your premium plan is activated.");
-      navigation.goBack();
+      navigation.replace("PaymentSuccess");
     } catch (err) {
       const isCancelled = err?.description?.includes("Payment cancelled");
       if (isCancelled) {
-        Alert.alert("Payment cancelled", "No charges were made.");
+        navigation.navigate("PaymentFailed", { message: "Payment cancelled. No charges were made." });
       } else {
-        console.log("payment error", err);
-        Alert.alert("Payment failed", err?.message || "Please try again.");
+        if (__DEV__) console.log("payment error", err);
+        navigation.navigate("PaymentFailed", { message: err?.message || "Please try again." });
       }
     } finally {
       setPayingPlanId(null);

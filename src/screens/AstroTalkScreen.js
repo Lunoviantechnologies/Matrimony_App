@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { SafeAreaView, View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator } from "react-native";
-import axiosInstance from "../api/axiosInstance";
+import { fetchAstrologersApi, fetchMyProfileApi } from "../api/api";
 import { getSession } from "../api/authSession";
 
 const AstroTalkScreen = ({ navigation }) => {
@@ -14,13 +14,13 @@ const AstroTalkScreen = ({ navigation }) => {
       setLoading(true);
       try {
         const [astroRes, meRes] = await Promise.all([
-          axiosInstance.get("/astro-number/All"),
-          userId ? axiosInstance.get(`/profiles/myprofiles/${userId}`) : Promise.resolve({ data: null }),
+          userId ? fetchAstrologersApi(userId) : Promise.resolve({ data: [] }),
+          userId ? fetchMyProfileApi(userId) : Promise.resolve({ data: null }),
         ]);
         setAstro(Array.isArray(astroRes.data) ? astroRes.data : []);
         setMe(meRes.data);
       } catch (e) {
-        console.log("astro load error:", e?.response?.data || e?.message);
+        if (__DEV__) console.log("astro load error:", e?.response?.data || e?.message);
       } finally {
         setLoading(false);
       }

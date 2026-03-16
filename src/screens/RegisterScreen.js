@@ -389,6 +389,7 @@ const RegisterScreen = ({ navigation }) => {
     role: "USER",
     emailOtp: "",
     emailVerified: false,
+    signupReferralCode: "",
   });
 
   const onChange = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
@@ -434,7 +435,7 @@ const RegisterScreen = ({ navigation }) => {
         const res = await fetchCountriesApi();
         setCountries(Array.isArray(res?.data) ? res.data : []);
       } catch (e) {
-        console.log("countries load error:", e?.response?.data || e?.message);
+        if (__DEV__) console.log("countries load error:", e?.response?.data || e?.message);
         setCountries([]);
       }
     };
@@ -469,34 +470,30 @@ const RegisterScreen = ({ navigation }) => {
       if (!form.state) e.state = "Required";
       if (!form.district) e.district = "Required";
       if (!form.city) e.city = "Required";
-      if (!form.maritalStatus) e.maritalStatus = "Required";
-      // Residence status required only for non-India countries (like web)
       if (form.country && form.country !== "India" && !form.residenceStatus) {
         e.residenceStatus = "Required";
       }
-      // Living status required only for divorced / separated / widowed
+    } else if (step === 4) {
+      if (!form.maritalStatus) e.maritalStatus = "Required";
       if (
         ["Divorced", "Separated", "Widowed"].includes(form.maritalStatus) &&
         !form.livingStatus
       ) {
         e.livingStatus = "Required";
       }
-    } else if (step === 4) {
-      if (!form.height) e.height = "Required";
     } else if (step === 5) {
       if (!form.highestEducation) e.highestEducation = "Required";
-      if (!form.collegeName) e.collegeName = "Required";
       if (!form.sector) e.sector = "Required";
       if (!form.occupation) e.occupation = "Required";
       if (!form.companyName) e.companyName = "Required";
-    } else if (step === 7) {
+    } else if (step === 6) {
       if (!form.emailId) e.emailId = "Required";
       if (!form.mobileNumber) e.mobileNumber = "Required";
       if (!form.createPassword) e.createPassword = "Required";
-    } else if (step === 8) {
-      if (!form.emailId) e.emailId = "Email required";
       if (!form.emailVerified) e.emailOtp = "Verify email with OTP";
+      if (!documentFile) e.documentFile = "Upload ID proof (Aadhar/PAN)";
     }
+    // step 7 = Review; no field validation
     return e;
   }, [form, step]);
 
@@ -532,7 +529,7 @@ const RegisterScreen = ({ navigation }) => {
         type: asset.type,
       });
     } catch (e) {
-      console.log("DOCUMENT PICK ERROR", e);
+      if (__DEV__) console.log("DOCUMENT PICK ERROR", e);
       Alert.alert("Error", "Unable to open gallery. Please try again.");
     }
   };
@@ -554,7 +551,7 @@ const RegisterScreen = ({ navigation }) => {
         typeof data === "string"
           ? data
           : data?.message || err?.message || "Please try again.";
-      console.log("SEND OTP ERROR", status, data || err);
+      if (__DEV__) console.log("SEND OTP ERROR", status, data || err);
       Alert.alert("Failed to send OTP", status ? `${status}: ${message}` : message);
     } finally {
       setOtpSending(false);
@@ -584,6 +581,14 @@ const RegisterScreen = ({ navigation }) => {
   const handleRegister = async () => {
     if (Object.keys(currentErrors).length) {
       Alert.alert("Missing info", "Please fill required fields.");
+      return;
+    }
+    if (!form.emailVerified) {
+      Alert.alert("Email not verified", "Please verify your email in the Contact step before submitting.");
+      return;
+    }
+    if (!documentFile) {
+      Alert.alert("Document required", "Please upload ID proof (Aadhar or PAN) in the Contact step.");
       return;
     }
 
@@ -620,8 +625,7 @@ const RegisterScreen = ({ navigation }) => {
       age: form.age ? Number(form.age) : null,
       dateOfBirth,
       religion: form.religion || null,
-      caste: form.caste || null,
-    subCaste: form.subCaste === "Others" ? form.subCasteOther || null : form.subCaste || null,
+      subCaste: form.subCaste === "Others" ? (form.subCasteOther || null) : (form.subCaste || null),
       motherTongue: form.motherTongue || null,
       country: form.country || null,
       state: form.state || null,
@@ -659,7 +663,7 @@ const RegisterScreen = ({ navigation }) => {
         typeof data === "string"
           ? data
           : data?.message || err?.message || "Please try again.";
-      console.log("REGISTER ERROR:", status, data || err?.message);
+      if (__DEV__) console.log("REGISTER ERROR:", status, data || err?.message);
       Alert.alert("Registration failed", status ? `${status}: ${message}` : message);
     } finally {
       setLoading(false);
@@ -673,8 +677,8 @@ const RegisterScreen = ({ navigation }) => {
       case 0:
         return (
           <>
-            <SectionTitle title="Profile is for" />
-            <RowInput label="Referral code" value={form.signupReferralCode} onChange={(v) => onChange("signupReferralCode", v)} />
+            {/* <SectionTitle title="Profile is for" /> */}
+            <RowInput label="Referral code (optional)" value={form.signupReferralCode} onChange={(v) => onChange("signupReferralCode", v)} placeholder="Referral code (optional)" />
             
             
             <SelectChips
@@ -695,11 +699,20 @@ const RegisterScreen = ({ navigation }) => {
       case 1:
         return (
           <>
-            <SectionTitle title="Personal details" />
-            <RowInput label="First name" value={form.firstName} onChange={(v) => onChange("firstName", v)} />
-            <RowInput label="Last name" value={form.lastName} onChange={(v) => onChange("lastName", v)} />
-            <RowInput label="Age" value={form.age} onChange={(v) => onChange("age", v)} keyboardType="number-pad" />
-            <SectionTitle title="Date of birth" />
+            <SectionTitle title="Tell us about you" />
+            <RowInput
+              label="First Name"
+              value={form.firstName}
+              onChange={(v) => onChange("firstName", v)}
+              placeholder="First Name"
+            />
+            <RowInput
+              label="Last Name"
+              value={form.lastName}
+              onChange={(v) => onChange("lastName", v)}
+              placeholder="Last Name"
+            />
+            <Text style={styles.label}>Date of Birth</Text>
             <View style={styles.row}>
               <SmallInput
                 placeholder="DD"
@@ -729,6 +742,13 @@ const RegisterScreen = ({ navigation }) => {
                 keyboardType="number-pad"
               />
             </View>
+            <RowInput
+              label="Age"
+              value={form.age}
+              onChange={(v) => onChange("age", v)}
+              keyboardType="number-pad"
+              placeholder="Age (auto from DOB)"
+            />
           </>
         );
       case 2:
@@ -773,7 +793,7 @@ const RegisterScreen = ({ navigation }) => {
       case 3:
         return (
           <>
-            <SectionTitle title="Location" />
+            <SectionTitle title="Where do you live?" />
             <DropdownSelect
               label="Country"
               options={countries.map((c) => c.name)}
@@ -792,7 +812,7 @@ const RegisterScreen = ({ navigation }) => {
                     setStates([]);
                   }
                 } catch (e) {
-                  console.log("states load error:", e?.response?.data || e?.message);
+                  if (__DEV__) console.log("states load error:", e?.response?.data || e?.message);
                   setStates([]);
                 }
               }}
@@ -817,6 +837,12 @@ const RegisterScreen = ({ navigation }) => {
                 onSelect={(v) => onChange("residenceStatus", v)}
               />
             )}
+          </>
+        );
+      case 4:
+        return (
+          <>
+            <SectionTitle title="Marital Status" />
             <DropdownSelect
               label="Marital status"
               options={maritalStatusOptions}
@@ -834,52 +860,66 @@ const RegisterScreen = ({ navigation }) => {
                 onSelect={(v) => onChange("livingStatus", v)}
               />
             )}
-            <RowInput
-              label="No. of children"
-              value={form.noOfChildren}
-              onChange={(v) => onChange("noOfChildren", v)}
-              keyboardType="number-pad"
-              disabled={form.maritalStatus === "Single"}
-              placeholder={form.maritalStatus === "Single" ? "Disabled for Single" : undefined}
-            />
-          </>
-        );
-      case 4:
-        return (
-          <>
-            <SectionTitle title="Basics" />
-            <RowInput
-              label="Height (ft/in or cm)"
-              value={form.height}
-              onChange={(v) => onChange("height", v)}
-              placeholder="e.g. 5'8 or 173"
-              keyboardType="number-pad"
-            />
+            {form.maritalStatus && form.maritalStatus !== "Single" && (
+              <RowInput
+                label="No. of children"
+                value={form.noOfChildren}
+                onChange={(v) => onChange("noOfChildren", v)}
+                keyboardType="number-pad"
+                placeholder="Number of children"
+              />
+            )}
           </>
         );
       case 5:
         return (
           <>
-            <SectionTitle title="Education & Career" />
-            <DropdownSelect label="Highest education" options={educationOptions} value={form.highestEducation} onSelect={(v) => onChange("highestEducation", v)} />
-            <RowInput label="College" value={form.collegeName} onChange={(v) => onChange("collegeName", v)} />
-            <DropdownSelect label="Sector" options={sectorOptions} value={form.sector} onSelect={(v) => onChange("sector", v)} />
-            <RowInput label="Occupation" value={form.occupation} onChange={(v) => onChange("occupation", v)} />
-            <RowInput label="Company" value={form.companyName} onChange={(v) => onChange("companyName", v)} />
+            <SectionTitle title="Education & Career Details" />
+            <DropdownSelect
+              label="Higher Qualification"
+              options={educationOptions}
+              value={form.highestEducation}
+              onSelect={(v) => onChange("highestEducation", v)}
+              placeholder="Select your higher Qualification"
+            />
+            <DropdownSelect
+              label="Sector"
+              options={sectorOptions}
+              value={form.sector}
+              onSelect={(v) => onChange("sector", v)}
+              placeholder="Select your sector"
+            />
+            <RowInput
+              label="Your Profession"
+              value={form.occupation}
+              onChange={(v) => onChange("occupation", v)}
+              placeholder="Your Profession"
+            />
+            <RowInput
+              label="Company Name"
+              value={form.companyName}
+              onChange={(v) => onChange("companyName", v)}
+              placeholder="Company Name"
+            />
+            <RowInput
+              label="Working Location"
+              value={form.workLocation}
+              onChange={(v) => onChange("workLocation", v)}
+              placeholder="Enter your working Location"
+            />
+            <DropdownSelect
+              label="Yearly Income"
+              options={annualIncomeOptions}
+              value={form.annualIncome}
+              onSelect={(v) => onChange("annualIncome", v)}
+              placeholder="Select your yearly Income"
+            />
           </>
         );
       case 6:
         return (
           <>
-            <SectionTitle title="Income" />
-            <DropdownSelect label="Annual income" options={annualIncomeOptions} value={form.annualIncome} onSelect={(v) => onChange("annualIncome", v)} />
-            <RowInput label="Work location" value={form.workLocation} onChange={(v) => onChange("workLocation", v)} />
-          </>
-        );
-      case 7:
-        return (
-          <>
-            <SectionTitle title="Account" />
+            <SectionTitle title="Contact Information" />
             <RowInput
               label="Email"
               value={form.emailId}
@@ -890,42 +930,12 @@ const RegisterScreen = ({ navigation }) => {
               }}
               keyboardType="email-address"
               autoCapitalize="none"
-            />
-            <RowInput
-              label="Mobile"
-              value={form.mobileNumber}
-              onChange={(v) => onChange("mobileNumber", v)}
-              keyboardType="phone-pad"
-            />
-            <RowInput label="Password" value={form.createPassword} onChange={(v) => onChange("createPassword", v)} secureTextEntry />
-            <RowInput
-              label="Referral code (optional)"
-              value={form.signupReferralCode}
-              onChange={(v) => onChange("signupReferralCode", v)}
-              autoCapitalize="characters"
-            />
-          </>
-        );
-      case 8:
-        return (
-          <>
-            <SectionTitle title="Verify Email" />
-            <RowInput
-              label="Email"
-              value={form.emailId}
-              onChange={(v) => {
-                onChange("emailId", v);
-                onChange("emailVerified", false);
-                onChange("emailOtp", "");
-              }}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              placeholder="Enter email to verify"
+              placeholder="Email Address"
             />
             <Text style={styles.helperText}>OTP will be sent to: {form.emailId || "Enter email above"}</Text>
             <View style={styles.otpRow}>
               <TouchableOpacity style={[styles.smallButton, styles.primary]} onPress={sendEmailOtp} disabled={otpSending || !form.emailId}>
-                <Text style={styles.navText}>{otpSending ? "Sending..." : "Verify Email"}</Text>
+                <Text style={styles.navText}>{otpSending ? "Sending..." : showOtpField ? "Resend OTP" : "Verify Email"}</Text>
               </TouchableOpacity>
             </View>
             {showOtpField && (
@@ -942,22 +952,45 @@ const RegisterScreen = ({ navigation }) => {
                   onPress={verifyEmailOtp}
                   disabled={otpVerifying || !form.emailOtp}
                 >
-                  <Text style={styles.navText}>{otpVerifying ? "Verifying..." : form.emailVerified ? "Verified" : "Verify OTP"}</Text>
+                  <Text style={styles.navText}>{otpVerifying ? "Verifying..." : form.emailVerified ? "Verified" : "Confirm OTP"}</Text>
                 </TouchableOpacity>
                 {form.emailVerified && <Text style={styles.successText}>Email verified</Text>}
               </>
             )}
-
-            <View style={{ marginTop: 16 }}>
-              <Text style={styles.label}>Verification document (optional)</Text>
-              <TouchableOpacity style={styles.uploadButton} onPress={pickDocument}>
-                <Text style={styles.uploadButtonText}>
-                  {documentFile?.fileName ? documentFile.fileName : "Attach ID / supporting document"}
-                </Text>
-              </TouchableOpacity>
-              {!!documentFile?.fileName && (
-                <Text style={styles.helperTextSmall}>Selected: {documentFile.fileName}</Text>
-              )}
+            <RowInput
+              label="Mobile"
+              value={form.mobileNumber}
+              onChange={(v) => onChange("mobileNumber", v)}
+              keyboardType="phone-pad"
+              placeholder="Mobile Number"
+            />
+            <RowInput label="Create Password" value={form.createPassword} onChange={(v) => onChange("createPassword", v)} secureTextEntry placeholder="Create Password" />
+            <Text style={styles.label}>Upload Document (ID Proof Aadhar or PAN)</Text>
+            <TouchableOpacity style={styles.uploadButton} onPress={pickDocument}>
+              <Text style={styles.uploadButtonText}>
+                {documentFile?.fileName ? documentFile.fileName : "Attach document"}
+              </Text>
+            </TouchableOpacity>
+            {!!documentFile?.fileName && (
+              <Text style={styles.helperTextSmall}>Selected: {documentFile.fileName}</Text>
+            )}
+          </>
+        );
+      case 7:
+        return (
+          <>
+            <SectionTitle title="Confirm & Submit" />
+            <Text style={styles.helperText}>Please review your details and submit your profile.</Text>
+            <View style={styles.reviewBlock}>
+              <Text style={styles.reviewLine}><Text style={styles.reviewLabel}>Profile for:</Text> {form.profileFor} · {form.gender}</Text>
+              <Text style={styles.reviewLine}><Text style={styles.reviewLabel}>Name:</Text> {form.firstName} {form.lastName}</Text>
+              <Text style={styles.reviewLine}><Text style={styles.reviewLabel}>Age / DOB:</Text> {form.age} · {form.dobDay}/{form.dobMonth}/{form.dobYear}</Text>
+              <Text style={styles.reviewLine}><Text style={styles.reviewLabel}>Religion / Community:</Text> {form.religion} · {form.subCaste}</Text>
+              <Text style={styles.reviewLine}><Text style={styles.reviewLabel}>Location:</Text> {form.city}, {form.district}, {form.state}, {form.country}</Text>
+              <Text style={styles.reviewLine}><Text style={styles.reviewLabel}>Marital:</Text> {form.maritalStatus}</Text>
+              <Text style={styles.reviewLine}><Text style={styles.reviewLabel}>Education / Work:</Text> {form.highestEducation} · {form.occupation}</Text>
+              <Text style={styles.reviewLine}><Text style={styles.reviewLabel}>Email:</Text> {form.emailId} {form.emailVerified ? " (Verified)" : ""}</Text>
+              <Text style={styles.reviewLine}><Text style={styles.reviewLabel}>Mobile:</Text> {form.mobileNumber}</Text>
             </View>
           </>
         );
@@ -1069,8 +1102,9 @@ const SelectChips = ({ options, value, onSelect }) => (
   </View>
 );
 
-const DropdownSelect = ({ label, options, value, onSelect }) => {
+const DropdownSelect = ({ label, options, value, onSelect, placeholder }) => {
   const [open, setOpen] = useState(false);
+  const displayText = value || placeholder || `Select ${label}`;
   return (
     <View style={{ marginBottom: 12 }}>
       <Text style={styles.label}>{label}</Text>
@@ -1079,7 +1113,7 @@ const DropdownSelect = ({ label, options, value, onSelect }) => {
         onPress={() => setOpen((p) => !p)}
       >
         <Text style={{ color: value ? "#000" : "#999" }}>
-          {value || `Select ${label}`}
+          {displayText}
         </Text>
       </TouchableOpacity>
       {open && (
@@ -1281,6 +1315,21 @@ const styles = StyleSheet.create({
   uploadButtonText: {
     fontSize: 13,
     color: "#444",
+  },
+  reviewBlock: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: "#f5f5f5",
+    borderRadius: 10,
+  },
+  reviewLine: {
+    fontSize: 13,
+    color: "#333",
+    marginBottom: 6,
+  },
+  reviewLabel: {
+    fontWeight: "700",
+    color: "#555",
   },
   dropdownList: {
     borderWidth: 1,

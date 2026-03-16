@@ -1,18 +1,29 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   SafeAreaView,
   View,
   Text,
   TextInput,
   StyleSheet,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
   ActivityIndicator,
   Image,
   Alert,
 } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
-import { fetchMyProfileApi, fetchUserProfilesApi } from "../api/api";
+import {
+  fetchMyProfileApi,
+  fetchSentRequestsApi,
+  fetchReceivedRequestsApi,
+  fetchAcceptedReceivedApi,
+  fetchAcceptedSentApi,
+  fetchRejectedReceivedApi,
+  fetchRejectedSentApi,
+  sendFriendRequestApi,
+  searchProfilesApi,
+} from "../api/api";
+import { getAbsolutePhotoUrl } from "../api/api";
 import { getSession, withPhotoVersion } from "../api/authSession";
 import { maskName } from "../utils/nameMask";
 
@@ -31,12 +42,99 @@ const getOppositeGender = (p) => {
   return null;
 };
 
+
+const getProfileAge = (profile) => {
+  if (profile?.age !== undefined && profile?.age !== null && `${profile.age}`.trim() !== "") {
+    const ageNum = Number(profile.age);
+    if (Number.isFinite(ageNum)) return ageNum;
+  }
+  if (profile?.dateOfBirth) {
+    const dob = new Date(profile.dateOfBirth);
+    if (!Number.isNaN(dob.getTime())) {
+      const diff = Date.now() - dob.getTime();
+      return Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000));
+    }
+  }
+  return null;
+};
+
+const asText = (value, fallback = "—") => {
+  if (value === undefined || value === null) return fallback;
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    const out = String(value).trim();
+    return out || fallback;
+  }
+  if (Array.isArray(value)) {
+    const out = value
+      .map((v) => (typeof v === "string" || typeof v === "number" || typeof v === "boolean" ? String(v) : ""))
+      .filter(Boolean)
+      .join(", ");
+    return out || fallback;
+  }
+  if (typeof value === "object") {
+    const preferred = value.name ?? value.label ?? value.value ?? "";
+    const out = String(preferred).trim();
+    return out || fallback;
+  }
+  return fallback;
+};
+
+const SearchProfileCard = React.memo(({ item, premiumActive, sendingId, onViewProfile, onAvatarPress, onSendRequest }) => {
+  const p = item;
+  return (
+    <View style={styles.card}>
+      <View style={styles.cardTop}>
+        <TouchableOpacity activeOpacity={0.9} onPress={() => onAvatarPress(p.id)}>
+          <View style={styles.avatarWrap}>
+            {p.updatePhoto || p.photoUrl || p.image || p.avatar ? (
+              <Image
+                source={{ uri: withPhotoVersion(getAbsolutePhotoUrl(p.updatePhoto || p.photoUrl || p.image || p.avatar)) }}
+                style={styles.avatar}
+              />
+            ) : (
+              <Text style={styles.avatarFallback}>{p.gender?.toString().toLowerCase() === "female" ? "👩" : "🧑"}</Text>
+            )}
+          </View>
+        </TouchableOpacity>
+        <View style={styles.meta}>
+          <Text style={styles.name}>
+            {premiumActive
+              ? `${asText(p.firstName, "New")} ${asText(p.lastName, "Member")}`.trim()
+              : maskName(asText(p.firstName, "New"), asText(p.lastName, "Member"))}
+            {p.age ? `, ${asText(p.age, "")}` : ""}
+          </Text>
+          <Text style={styles.line}>{asText(p.occupation)}</Text>
+          <Text style={styles.line}>{asText(p.highestEducation)}</Text>
+          <Text style={styles.line}>{asText(p.city, asText(p.country))}</Text>
+        </View>
+      </View>
+      <View style={styles.btnRow}>
+        <TouchableOpacity style={styles.viewBtn} onPress={() => onViewProfile(p.id)}>
+          <Text style={styles.viewBtnText}>View Profile</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.sendBtn, sendingId === p.id && styles.sendBtnDisabled]}
+          onPress={() => onSendRequest(p.id)}
+          disabled={sendingId === p.id}
+        >
+          <Text style={styles.sendBtnText}>{sendingId === p.id ? "Sending..." : "Send Request"}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+});
+
 const SearchScreen = ({ navigation, route }) => {
   const [query, setQuery] = useState("");
-  const [profiles, setProfiles] = useState([]);
+  const [results, setResults] = useState([]);
   const [myProfile, setMyProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [hiddenIds, setHiddenIds] = useState(new Set());
+  const [sendingId, setSendingId] = useState(null);
+  const [page, setPage] = useState(0);
+  const [size] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
   const isFocused = useIsFocused();
 
   useEffect(() => {
@@ -51,11 +149,33 @@ const SearchScreen = ({ navigation, route }) => {
           return;
         }
 
-        const [meRes, allRes] = await Promise.all([fetchMyProfileApi(userId), fetchUserProfilesApi()]);
+        const [
+          meRes,
+          sentRes,
+          receivedRes,
+          acceptedRecRes,
+          acceptedSentRes,
+          rejectedRecRes,
+          rejectedSentRes,
+        ] = await Promise.all([
+          fetchMyProfileApi(userId),
+          fetchSentRequestsApi(userId).catch(() => ({ data: [] })),
+          fetchReceivedRequestsApi(userId).catch(() => ({ data: [] })),
+          fetchAcceptedReceivedApi(userId).catch(() => ({ data: [] })),
+          fetchAcceptedSentApi(userId).catch(() => ({ data: [] })),
+          fetchRejectedReceivedApi(userId).catch(() => ({ data: [] })),
+          fetchRejectedSentApi(userId).catch(() => ({ data: [] })),
+        ]);
         setMyProfile(meRes.data);
-        const list = Array.isArray(allRes?.data) ? allRes.data : [];
-        const withoutSelf = list.filter((p) => p?.id && p.id !== userId);
-        setProfiles(withoutSelf);
+
+        const sentIds = (sentRes?.data || []).map((r) => r.receiverId);
+        const receivedIds = (receivedRes?.data || []).map((r) => r.senderId);
+        const acceptedRec = (acceptedRecRes?.data || []).map((r) => (r.receiverId === userId ? r.senderId : r.receiverId));
+        const acceptedSent = (acceptedSentRes?.data || []).map((r) => (r.receiverId === userId ? r.senderId : r.receiverId));
+        const rejectedRec = (rejectedRecRes?.data || []).map((r) => (r.receiverId === userId ? r.senderId : r.receiverId));
+        const rejectedSent = (rejectedSentRes?.data || []).map((r) => (r.receiverId === userId ? r.senderId : r.receiverId));
+        const allHidden = [...sentIds, ...receivedIds, ...acceptedRec, ...acceptedSent, ...rejectedRec, ...rejectedSent];
+        setHiddenIds(new Set(allHidden));
       } catch (e) {
         setError("Failed to load search data.");
       } finally {
@@ -68,37 +188,56 @@ const SearchScreen = ({ navigation, route }) => {
     }
   }, [route?.params?.userId, isFocused]);
 
-  const filteredProfiles = useMemo(() => {
-    if (!profiles.length || !myProfile) return [];
-    const q = query.trim().toLowerCase();
-    if (!q) return [];
+  const runSearch = useCallback(
+    async (pageNo = 0, reset = true) => {
+      if (!myProfile) return;
+      const session = getSession();
+      const userId = route?.params?.userId || session.userId;
+      if (!userId) return;
 
-    const targetGender = getOppositeGender(myProfile);
+      const searchText = query.trim();
+      if (!searchText) {
+        setResults([]);
+        setPage(0);
+        setTotalPages(1);
+        return;
+      }
 
-    return profiles
-      .filter((p) => (targetGender ? (p.gender || "").toString().toLowerCase() === targetGender : true))
-      .filter((p) => {
-        const fields = [
-          p.firstName,
-          p.lastName,
-          p.city,
-          p.hobbies,
-          p.occupation,
-          p.caste,
-          p.religion,
-          p.motherTongue,
-          p.annualIncome,
-          p.age ? String(p.age) : "",
-        ]
-          .filter(Boolean)
-          .map((v) => v.toString().toLowerCase());
-        return fields.some((f) => f.includes(q));
-      });
-  }, [profiles, myProfile, query]);
+      setLoading(true);
+      setError("");
+      try {
+        const filters = {
+          myId: userId,
+          myGender: myProfile.gender,
+          search: searchText,
+        };
+        const res = await searchProfilesApi(filters, pageNo, size);
+        const { content = [], totalPages: tp = 1 } = res.data || {};
+        setTotalPages(tp);
+        setPage(pageNo);
+        setResults((prev) => (reset ? content : [...prev, ...content]));
+      } catch (e) {
+        setError("Failed to run search.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [myProfile, query, route?.params?.userId, size]
+  );
+
+  useEffect(() => {
+    // debounce text input
+    const id = setTimeout(() => {
+      if (myProfile) {
+        runSearch(0, true);
+      }
+    }, 400);
+    return () => clearTimeout(id);
+  }, [query, myProfile, runSearch]);
 
   const premiumActive = isPremiumActive(myProfile);
 
-  const handleViewProfile = (profileId) => {
+  const handleViewProfile = useCallback((profileId) => {
     if (!profileId) return;
     if (!isPremiumActive(myProfile)) {
       Alert.alert("Upgrade to Premium", "Unlock full profile views with a Premium plan.", [
@@ -108,9 +247,10 @@ const SearchScreen = ({ navigation, route }) => {
       return;
     }
     navigation.navigate("ProfileView", { profileId });
-  };
+  }, [myProfile, navigation]);
 
-  const handleAvatarPress = (profileId) => {
+  const handleAvatarPress = useCallback((profileId) => {
+    if (!profileId) return;
     if (!isPremiumActive(myProfile)) {
       Alert.alert("Upgrade to Premium", "Unlock profile photos with a Premium plan.", [
         { text: "Later", style: "cancel" },
@@ -118,8 +258,27 @@ const SearchScreen = ({ navigation, route }) => {
       ]);
       return;
     }
-    if (profileId) {
-      navigation.navigate("ProfileView", { profileId });
+    navigation.navigate("ProfileView", { profileId });
+  }, [myProfile, navigation]);
+
+  const handleSendRequest = async (receiverId) => {
+    const session = getSession();
+    const userId = session?.userId;
+    if (!userId || !receiverId) return;
+    setSendingId(receiverId);
+    try {
+      await sendFriendRequestApi(userId, receiverId);
+      setHiddenIds((prev) => new Set([...prev, receiverId]));
+      Alert.alert("Sent", "Interest sent successfully.");
+    } catch (e) {
+      const raw = e?.response?.data;
+      const msg =
+        typeof raw === "string"
+          ? raw
+          : raw?.message || e?.message || "Could not send request.";
+      Alert.alert("Failed", msg);
+    } finally {
+      setSendingId(null);
     }
   };
 
@@ -165,47 +324,43 @@ const SearchScreen = ({ navigation, route }) => {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {!query.trim() ? (
-          <Text style={styles.hint}>Type to search profiles. Results will appear here.</Text>
-        ) : filteredProfiles.length === 0 ? (
+      {!query.trim() ? (
+        <View style={styles.content}>
+          <Text style={styles.hint}>Type in search to see matching profiles.</Text>
+        </View>
+      ) : results.length === 0 ? (
+        <View style={styles.content}>
           <Text style={styles.hint}>No profiles match your search yet.</Text>
-        ) : (
-          filteredProfiles.map((p) => (
-            <View key={p.id} style={styles.card}>
-              <View style={styles.cardTop}>
-                <TouchableOpacity activeOpacity={0.9} onPress={() => handleAvatarPress(p.id)}>
-                  <View style={styles.avatarWrap}>
-                    {p.updatePhoto || p.photoUrl || p.image || p.avatar ? (
-                    <Image
-                      source={{ uri: withPhotoVersion(p.updatePhoto || p.photoUrl || p.image || p.avatar) }}
-                      style={styles.avatar}
-                    />
-                    ) : (
-                      <Text style={styles.avatarFallback}>{p.gender?.toString().toLowerCase() === "female" ? "👩" : "🧑"}</Text>
-                    )}
-                    {/* Blur removed: all users can see profile photos clearly */}
-                  </View>
-                </TouchableOpacity>
-                <View style={styles.meta}>
-                  <Text style={styles.name}>
-                    {premiumActive
-                      ? `${(p.firstName || "New").trim()} ${(p.lastName || "Member").trim()}`.trim()
-                      : maskName(p.firstName || "New", p.lastName || "Member")}
-                    {p.age ? `, ${p.age}` : ""}
-                  </Text>
-                  <Text style={styles.line}>{p.occupation || "—"}</Text>
-                  <Text style={styles.line}>{p.highestEducation || "—"}</Text>
-                  <Text style={styles.line}>{p.city || p.country || "—"}</Text>
-                </View>
-              </View>
-              <TouchableOpacity style={styles.viewBtn} onPress={() => handleViewProfile(p.id)}>
-                <Text style={styles.viewBtnText}>View Profile</Text>
-              </TouchableOpacity>
-            </View>
-          ))
-        )}
-      </ScrollView>
+        </View>
+      ) : (
+        <FlatList
+          data={results.filter((p) => !hiddenIds.has(p.id))}
+          keyExtractor={(item) => String(item.id)}
+          renderItem={({ item }) => (
+            <SearchProfileCard
+              item={item}
+              premiumActive={premiumActive}
+              sendingId={sendingId}
+              onViewProfile={handleViewProfile}
+              onAvatarPress={handleAvatarPress}
+              onSendRequest={handleSendRequest}
+            />
+          )}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          initialNumToRender={12}
+          maxToRenderPerBatch={10}
+          windowSize={6}
+          removeClippedSubviews={true}
+          onEndReached={() => {
+            if (!loading && page + 1 < totalPages) {
+              runSearch(page + 1, false);
+            }
+          }}
+          onEndReachedThreshold={0.5}
+        />
+      )}
+
     </SafeAreaView>
   );
 };
@@ -220,6 +375,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderRadius: 14,
     paddingHorizontal: 14,
+    borderRadius: 16,
     paddingVertical: 10,
     shadowColor: "#000",
     shadowOpacity: 0.05,
@@ -228,6 +384,60 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   searchInput: { fontSize: 16, color: "#1f1f39" },
+  filterActionsRow: {
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  openFiltersBtn: {
+    backgroundColor: "#1f1f39",
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
+  },
+  openFiltersText: { color: "#fff", fontWeight: "700" },
+  appliedCountText: { color: "#4b4a5f", fontSize: 12, fontWeight: "700" },
+  drawerOverlay: {
+    flex: 1,
+    flexDirection: "row",
+  },
+  drawerBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.35)",
+  },
+  drawerPanel: {
+    width: "82%",
+    maxWidth: 360,
+    backgroundColor: "#fff",
+    padding: 14,
+    borderTopLeftRadius: 16,
+    borderBottomLeftRadius: 16,
+    borderLeftWidth: 1,
+    borderLeftColor: "#dbe4d2",
+  },
+  filterTitle: { fontSize: 28, fontWeight: "800", color: "#7a4c00", textAlign: "center", marginBottom: 8 },
+  filterGroupTitle: { fontSize: 18, fontWeight: "800", color: "#1f1f39", marginTop: 8, marginBottom: 6 },
+  filterOptionsWrap: { gap: 6, marginBottom: 8 },
+  filterOptionRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 4 },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: "#9ca3af",
+    backgroundColor: "#fff",
+  },
+  checkboxChecked: { backgroundColor: "#3b82f6", borderColor: "#3b82f6" },
+  filterOptionText: { fontSize: 16, fontWeight: "700", color: "#1f1f39" },
+  applyFiltersBtn: {
+    marginTop: 8,
+    backgroundColor: "#5f9cf4",
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  applyFiltersText: { color: "#fff", fontWeight: "800", fontSize: 20 },
   content: { paddingHorizontal: 16, paddingBottom: 180, gap: 12 },
   hint: { color: "#4b4a5f", fontSize: 14, marginTop: 12 },
   card: {
@@ -259,14 +469,24 @@ const styles = StyleSheet.create({
   meta: { marginLeft: 12, flex: 1, justifyContent: "center" },
   name: { fontSize: 16, fontWeight: "800", color: "#1f1f39" },
   line: { color: "#6b6a7a", fontSize: 12, marginTop: 2 },
+  btnRow: { flexDirection: "row", marginTop: 12, gap: 10 },
   viewBtn: {
-    marginTop: 12,
-    backgroundColor: "#f75b8a",
+    flex: 1,
+    backgroundColor: "#111827",
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: "center",
   },
-  viewBtnText: { color: "#fff", fontWeight: "800" },
+  viewBtnText: { color: "#e5e7eb", fontWeight: "800" },
+  sendBtn: {
+    flex: 1,
+    backgroundColor: "#16a34a",
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  sendBtnDisabled: { opacity: 0.7 },
+  sendBtnText: { color: "#fff", fontWeight: "800" },
   centerWrap: { flex: 1, alignItems: "center", justifyContent: "center", padding: 20 },
   statusText: { marginTop: 10, color: "#1f1f39", fontWeight: "700" },
   retryBtn: {

@@ -23,7 +23,7 @@ const NotificationBell = ({ onNavigate }) => {
       const normalized = data.map((n) => ({ ...n, read: Boolean(n.read) }));
       setNotifications(normalized);
     } catch (err) {
-      console.log("notifications load error:", err?.response?.data || err?.message);
+      if (__DEV__) console.log("notifications load error:", err?.response?.data || err?.message);
       setNotifications([]);
     } finally {
       setLoading(false);
@@ -48,7 +48,7 @@ const NotificationBell = ({ onNavigate }) => {
       await markAllNotificationsReadApi(userId);
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     } catch (err) {
-      console.log("mark all read error:", err?.response?.data || err?.message);
+      if (__DEV__) console.log("mark all read error:", err?.response?.data || err?.message);
     }
   };
 

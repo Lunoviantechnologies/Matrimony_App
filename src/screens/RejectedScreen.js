@@ -17,16 +17,27 @@ const RejectedScreen = () => {
       setLoading(true);
       try {
         const [recv, sent, all, mine] = await Promise.all([
-          axiosInstance.get(`/friends/rejected/received/${userId}`),
-          axiosInstance.get(`/friends/rejected/sent/${userId}`),
-          axiosInstance.get("/profiles/Allprofiles"),
+          axiosInstance.get(`/api/friends/rejected/received/${userId}`),
+          axiosInstance.get(`/api/friends/rejected/sent/${userId}`),
+          axiosInstance.get("/api/profiles/Allprofiles"),
           axiosInstance.get(`/api/profiles/myprofiles/${userId}`),
         ]);
-        setRejected([...(recv.data || []), ...(sent.data || [])]);
+        const recvArr = Array.isArray(recv.data) ? recv.data : [];
+        const sentArr = Array.isArray(sent.data) ? sent.data : [];
+        const combined = [...recvArr, ...sentArr];
+        // Deduplicate by requestId or by senderId+receiverId so same rejection doesn't show twice
+        const seen = new Set();
+        const deduped = combined.filter((r) => {
+          const key = r.requestId ?? r.id ?? `${r.senderId}-${r.receiverId}-${r.senderId === userId ? "sent" : "recv"}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+        setRejected(deduped);
         setProfiles(Array.isArray(all.data) ? all.data : []);
         setMe(mine.data);
       } catch (e) {
-        console.log("rejected load error:", e?.response?.data || e?.message);
+        if (__DEV__) console.log("rejected load error:", e?.response?.data || e?.message);
       } finally {
         setLoading(false);
       }
@@ -74,7 +85,7 @@ const RejectedScreen = () => {
       <Text style={styles.title}>Rejected Requests</Text>
       <FlatList
         data={rejected}
-        keyExtractor={(i) => `${i.requestId || i.senderId}`}
+        keyExtractor={(item, index) => `${item.requestId ?? item.id ?? item.senderId}-${item.receiverId}-${index}`}
         renderItem={renderItem}
         ListEmptyComponent={<Text style={styles.empty}>No rejected requests.</Text>}
         contentContainerStyle={{ padding: 16, gap: 12 }}

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { SafeAreaView, View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Image, Modal } from "react-native";
-import { fetchMyProfileApi } from "../api/api";
+import { fetchMyProfileApi, fetchProfileViewByIdApi, recordProfileViewApi, getAbsolutePhotoUrl } from "../api/api";
 import { getSession, withPhotoVersion } from "../api/authSession";
 
 const ProfileView = ({ navigation, route }) => {
@@ -8,6 +8,7 @@ const ProfileView = ({ navigation, route }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [photoModalVisible, setPhotoModalVisible] = useState(false);
+  const [activePhotoIndex, setActivePhotoIndex] = useState(0);
 
   useEffect(() => {
     const load = async () => {
@@ -19,8 +20,14 @@ const ProfileView = ({ navigation, route }) => {
           setLoading(false);
           return;
         }
-        const res = await fetchMyProfileApi(targetId);
-        setProfile(res.data);
+        if (targetId === userId) {
+          const res = await fetchMyProfileApi(targetId);
+          setProfile(res.data);
+        } else {
+          const res = await fetchProfileViewByIdApi(userId, targetId);
+          setProfile(res.data);
+          recordProfileViewApi(userId, targetId).catch(() => {});
+        }
       } catch (e) {
         setError("Failed to load profile. Please try again.");
       } finally {
@@ -29,6 +36,34 @@ const ProfileView = ({ navigation, route }) => {
     };
     load();
   }, [route?.params?.profileId]);
+
+  const photoSlots = profile
+    ? [
+        profile.updatePhoto,
+        profile.updatePhoto1,
+        profile.updatePhoto2,
+        profile.updatePhoto3,
+        profile.updatePhoto4,
+      ].filter(Boolean)
+    : [];
+
+  const photoUrls = photoSlots.map((p) =>
+    withPhotoVersion(getAbsolutePhotoUrl(p))
+  );
+
+  const primaryPhoto =
+    photoUrls[0] ||
+    (profile
+      ? withPhotoVersion(
+          getAbsolutePhotoUrl(
+            profile.updatePhoto ||
+              profile.photoUrl ||
+              profile.image ||
+              profile.avatar ||
+              null
+          )
+        )
+      : null);
 
   const user = profile
     ? {
@@ -40,13 +75,7 @@ const ProfileView = ({ navigation, route }) => {
         education: profile.highestEducation || "—",
         height: profile.height || "—",
         maritalStatus: profile.maritalStatus || "—",
-        photo: withPhotoVersion(
-          profile.updatePhoto ||
-          profile.photoUrl ||
-          profile.image ||
-          profile.avatar ||
-          null
-        ),
+        photo: primaryPhoto,
       }
     : null;
 
@@ -97,7 +126,12 @@ const ProfileView = ({ navigation, route }) => {
                 <View style={styles.avatarRow}>
                   <TouchableOpacity
                     activeOpacity={0.8}
-                    onPress={() => user?.photo && setPhotoModalVisible(true)}
+                    onPress={() => {
+                      if (user?.photo) {
+                        setActivePhotoIndex(0);
+                        setPhotoModalVisible(true);
+                      }
+                    }}
                     style={styles.avatarPressable}
                   >
                     {user?.photo ? (
@@ -173,19 +207,57 @@ const ProfileView = ({ navigation, route }) => {
           <View style={styles.card}>
             <Text style={styles.greeting}>Profile Photo</Text>
             <Text style={styles.subline}>You are viewing a member</Text>
-            <TouchableOpacity
-              activeOpacity={0.9}
-              onPress={() => user?.photo && setPhotoModalVisible(true)}
-              style={[styles.viewerImageWrap]}
-            >
-              {user?.photo ? (
-                <Image source={{ uri: user.photo }} style={styles.viewerImage} />
+            <View style={styles.viewerImageWrap}>
+              {primaryPhoto ? (
+                <>
+                  <Image
+                    source={{ uri: photoUrls[activePhotoIndex] || primaryPhoto }}
+                    style={styles.viewerImage}
+                  />
+                  {photoUrls.length > 1 && (
+                    <>
+                      <TouchableOpacity
+                        style={[styles.navArrow, styles.navArrowLeft]}
+                        onPress={() =>
+                          setActivePhotoIndex((idx) =>
+                            (idx - 1 + photoUrls.length) % photoUrls.length
+                          )
+                        }
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.navArrowText}>‹</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.navArrow, styles.navArrowRight]}
+                        onPress={() =>
+                          setActivePhotoIndex((idx) => (idx + 1) % photoUrls.length)
+                        }
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.navArrowText}>›</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                  <TouchableOpacity
+                    activeOpacity={0.9}
+                    style={StyleSheet.absoluteFill}
+                    onPress={() => {
+                      setPhotoModalVisible(true);
+                    }}
+                  />
+                </>
               ) : (
-                <View style={[styles.viewerImage, styles.avatarCircle, { alignItems: "center", justifyContent: "center" }]}>
+                <View
+                  style={[
+                    styles.viewerImage,
+                    styles.avatarCircle,
+                    { alignItems: "center", justifyContent: "center" },
+                  ]}
+                >
                   <Text style={styles.avatarEmoji}>💑</Text>
                 </View>
               )}
-            </TouchableOpacity>
+            </View>
             <View style={{ marginTop: 12 }}>
               <Text style={styles.name}>{user?.name}</Text>
               <Text style={styles.meta}>{[user?.age && `${user.age} yrs`, user?.location].filter(Boolean).join(" • ") || "—"}</Text>
@@ -254,10 +326,65 @@ const ProfileView = ({ navigation, route }) => {
             >
               <Text style={styles.closeBtnText}>✕</Text>
             </TouchableOpacity>
-            {user?.photo ? (
-              <Image source={{ uri: user.photo }} style={styles.modalImage} resizeMode="contain" />
+            {photoUrls.length > 0 ? (
+              <>
+                <View style={styles.modalImageWrap}>
+                  <Image
+                    source={{ uri: photoUrls[activePhotoIndex] }}
+                    style={styles.modalImage}
+                    resizeMode="contain"
+                  />
+                  {photoUrls.length > 1 && (
+                    <>
+                      <TouchableOpacity
+                        style={[styles.navArrow, styles.navArrowLeft]}
+                        onPress={() =>
+                          setActivePhotoIndex((idx) =>
+                            (idx - 1 + photoUrls.length) % photoUrls.length
+                          )
+                        }
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.navArrowText}>‹</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.navArrow, styles.navArrowRight]}
+                        onPress={() =>
+                          setActivePhotoIndex((idx) => (idx + 1) % photoUrls.length)
+                        }
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.navArrowText}>›</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </View>
+                {photoUrls.length > 1 && (
+                  <View style={styles.thumbRow}>
+                    {photoUrls.map((uri, idx) => (
+                      <TouchableOpacity
+                        key={uri + idx}
+                        onPress={() => setActivePhotoIndex(idx)}
+                        style={[
+                          styles.thumbWrap,
+                          activePhotoIndex === idx && styles.thumbWrapActive,
+                        ]}
+                        activeOpacity={0.9}
+                      >
+                        <Image source={{ uri }} style={styles.thumbImage} />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </>
             ) : (
-              <View style={[styles.modalImage, styles.avatarCircle, { alignItems: "center", justifyContent: "center" }]}>
+              <View
+                style={[
+                  styles.modalImage,
+                  styles.avatarCircle,
+                  { alignItems: "center", justifyContent: "center" },
+                ]}
+              >
                 <Text style={styles.avatarEmoji}>💑</Text>
               </View>
             )}
@@ -365,7 +492,51 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   modalContent: { flex: 1, alignItems: "center", justifyContent: "center" },
-  modalImage: { width: "90%", height: "70%" },
+  modalImageWrap: {
+    width: "90%",
+    height: "60%",
+    borderRadius: 14,
+    overflow: "hidden",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalImage: { width: "100%", height: "100%", borderRadius: 14 },
+  navArrow: {
+    position: "absolute",
+    top: "50%",
+    marginTop: -20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  navArrowLeft: { left: 10 },
+  navArrowRight: { right: 10 },
+  navArrowText: { color: "#fff", fontSize: 22, fontWeight: "700" },
+  thumbRow: {
+    flexDirection: "row",
+    marginTop: 12,
+    gap: 8,
+    justifyContent: "center",
+  },
+  thumbWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    overflow: "hidden",
+    borderWidth: 2,
+    borderColor: "transparent",
+  },
+  thumbWrapActive: {
+    borderColor: "#f75b8a",
+  },
+  thumbImage: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
   viewerImageWrap: { marginTop: 12, borderRadius: 14, overflow: "hidden", alignItems: "center", justifyContent: "center" },
   viewerImage: { width: "100%", height: 260, borderRadius: 14 },
   closeBtn: {

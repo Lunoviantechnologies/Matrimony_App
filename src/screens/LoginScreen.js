@@ -1,7 +1,10 @@
 import React, { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, SafeAreaView, Image, ImageBackground } from "react-native";
-import { loginApi } from "../api/api";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { loginApi, useReferralCodeApi } from "../api/api";
 import { setSession } from "../api/authSession";
+
+const REFERRAL_CODE_KEY = "referralCode";
 
 const LoginScreen = ({ navigation }) => {
   const [emailId, setEmailId] = useState("");
@@ -18,11 +21,31 @@ const LoginScreen = ({ navigation }) => {
     try {
       const res = await loginApi({ emailId, createPassword });
       const payload = res?.data || {};
-      setSession({ token: payload.token, userId: payload.id, email: payload.email });
-      navigation.replace("Dashboard", { userId: payload.id });
+      const token = payload.token;
+      const userId = payload.id;
+      const email = payload.email;
+      setSession({ token, userId, email });
+
+      // Apply referral code after login if user came from referral link (same as web)
+      try {
+        const referralCode = await AsyncStorage.getItem(REFERRAL_CODE_KEY);
+        if (referralCode && token) {
+          await useReferralCodeApi(referralCode);
+          await AsyncStorage.removeItem(REFERRAL_CODE_KEY);
+        }
+      } catch (_) {
+        // Fail silently; do not block login
+      }
+
+      navigation.replace("Dashboard", { userId });
     } catch (err) {
-      console.log("LOGIN ERROR:", err?.response?.data || err.message);
-      Alert.alert("Login failed", err?.response?.data || "Please try again");
+      if (__DEV__) console.log("LOGIN ERROR:", err?.response?.data || err.message);
+      const raw = err?.response?.data;
+      const msg =
+        typeof raw === "string"
+          ? raw
+          : raw?.message || err?.message || "Please try again";
+      Alert.alert("Login failed", msg);
     } finally {
       setLoading(false);
     }
@@ -106,6 +129,8 @@ const LoginScreen = ({ navigation }) => {
               </TouchableOpacity>
             </View>
 
+          </View>
+
           <View style={styles.legalRow}>
             <TouchableOpacity onPress={() => navigation.navigate("Terms")} style={styles.legalLink}>
               <Text style={styles.legalText}>Terms & Conditions</Text>
@@ -119,7 +144,18 @@ const LoginScreen = ({ navigation }) => {
             <TouchableOpacity onPress={() => navigation.navigate("RefundPolicy")} style={styles.legalLink}>
               <Text style={styles.legalText}>Refund Policy</Text>
               </TouchableOpacity>
-            </View>
+            <TouchableOpacity onPress={() => navigation.navigate("Disclaimer")} style={styles.legalLink}>
+              <Text style={styles.legalText}>Disclaimer</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate("AboutUs")} style={styles.legalLink}>
+              <Text style={styles.legalText}>About Us</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate("ContactUs")} style={styles.legalLink}>
+              <Text style={styles.legalText}>Contact Us</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate("BlogList")} style={styles.legalLink}>
+              <Text style={styles.legalText}>Blogs</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </View>

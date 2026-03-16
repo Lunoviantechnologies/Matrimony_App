@@ -1,14 +1,16 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { SafeAreaView, Text, FlatList, View, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
-import axiosInstance from "../api/axiosInstance";
+import {
+  fetchFriendRequestsFilterApi,
+  deleteSentRequestApi,
+  fetchMyProfileApi,
+} from "../api/api";
 import { getSession } from "../api/authSession";
 import { maskName } from "../utils/nameMask";
-import { fetchSentRequestsApi } from "../api/api";
 
 const SentRequestsScreen = () => {
   const { userId } = getSession();
   const [sent, setSent] = useState([]);
-  const [profiles, setProfiles] = useState([]);
   const [me, setMe] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -17,28 +19,14 @@ const SentRequestsScreen = () => {
       if (!userId) return;
       setLoading(true);
       try {
-        const [sentRes, allProfiles, mine, accSent] = await Promise.all([
-          fetchSentRequestsApi(userId),
-          axiosInstance.get("/api/profiles/Allprofiles"),
-          axiosInstance.get(`/api/profiles/myprofiles/${userId}`),
-          axiosInstance.get(`/api/friends/accepted/sent/${userId}`),
+        const [sentRes, mineRes] = await Promise.all([
+          fetchFriendRequestsFilterApi(userId, "sent"),
+          fetchMyProfileApi(userId),
         ]);
-
-        const acceptedIds = new Set(
-          (accSent.data || [])
-            .map((r) => r.receiverId)
-            .filter(Boolean)
-        );
-
-        const pendingOnly = (sentRes.data || []).filter(
-          (r) => !acceptedIds.has(r.receiverId)
-        );
-
-        setSent(pendingOnly);
-        setProfiles(Array.isArray(allProfiles.data) ? allProfiles.data : []);
-        setMe(mine.data);
+        setSent(Array.isArray(sentRes.data) ? sentRes.data : []);
+        setMe(mineRes?.data ?? null);
       } catch (e) {
-        console.log("sent requests load error:", e?.response?.data || e?.message);
+        if (__DEV__) console.log("sent requests load error:", e?.response?.data || e?.message);
       } finally {
         setLoading(false);
       }
@@ -48,10 +36,10 @@ const SentRequestsScreen = () => {
 
   const handleCancel = async (requestId) => {
     try {
-      await axiosInstance.delete(`/api/friends/sent/delete/${requestId}`);
+      await deleteSentRequestApi(requestId);
       setSent((prev) => prev.filter((r) => r.requestId !== requestId));
     } catch (e) {
-      console.log("cancel error:", e?.response?.data || e?.message);
+      if (__DEV__) console.log("cancel error:", e?.response?.data || e?.message);
     }
   };
 
@@ -64,17 +52,13 @@ const SentRequestsScreen = () => {
   }, [me]);
 
   const renderItem = ({ item }) => {
-    const otherProfile = profiles.find((p) => p.id === item.receiverId);
+    const profile = item.profile;
+    const displayName = profile?.name?.trim() || "User";
+    const nameToShow = premiumActive ? displayName : maskName(profile?.name?.split(" ")[0], profile?.name?.split(" ").slice(1).join(" "));
     return (
       <View style={styles.card}>
-        <Text style={styles.name}>
-          {otherProfile
-            ? premiumActive
-              ? `${(otherProfile.firstName || "").trim()} ${(otherProfile.lastName || "").trim()}`.trim() || "User"
-              : maskName(otherProfile.firstName, otherProfile.lastName)
-            : item.receiverName || "User"}
-        </Text>
-        <Text style={styles.meta}>{otherProfile?.city || "—"}</Text>
+        <Text style={styles.name}>{nameToShow}</Text>
+        <Text style={styles.meta}>{profile?.city || "—"}</Text>
         <TouchableOpacity style={styles.btn} onPress={() => handleCancel(item.requestId)}>
           <Text style={styles.btnText}>Cancel</Text>
         </TouchableOpacity>

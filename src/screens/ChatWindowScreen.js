@@ -24,6 +24,7 @@ import {
   unblockUserApi,
   fetchOnlineUsersApi,
   markChatSeenApi,
+  getAbsolutePhotoUrl,
 } from "../api/api";
 
 const ChatWindowScreen = () => {
@@ -76,7 +77,7 @@ const ChatWindowScreen = () => {
         }
       } catch (e) {
         if (!isCancelled) {
-          console.log("chat window load error:", e?.response?.data || e?.message);
+          if (__DEV__) console.log("chat window load error:", e?.response?.data || e?.message);
           setIsOnline(false);
         }
       } finally {
@@ -125,7 +126,7 @@ const ChatWindowScreen = () => {
       const list = res.data?.content || res.data || [];
       setMessages(Array.isArray(list) ? list : []);
     } catch (e) {
-      console.log("chat window send error:", e?.response?.data || e?.message);
+      if (__DEV__) console.log("chat window send error:", e?.response?.data || e?.message);
     } finally {
       setSending(false);
     }
@@ -167,7 +168,7 @@ const ChatWindowScreen = () => {
       await blockUserApi(userId, otherId);
       setIBlocked(true);
     } catch (e) {
-      console.log("block user error:", e?.response?.data || e?.message);
+      if (__DEV__) console.log("block user error:", e?.response?.data || e?.message);
     } finally {
       setBusy(false);
       setMenuOpen(false);
@@ -185,7 +186,7 @@ const ChatWindowScreen = () => {
       });
       setIsReported(true);
     } catch (e) {
-      console.log("report user error:", e?.response?.data || e?.message);
+      if (__DEV__) console.log("report user error:", e?.response?.data || e?.message);
     } finally {
       setBusy(false);
       setMenuOpen(false);
@@ -199,7 +200,7 @@ const ChatWindowScreen = () => {
       await unblockUserApi(userId, otherId);
       setIBlocked(false);
     } catch (e) {
-      console.log("unblock user error:", e?.response?.data || e?.message);
+      if (__DEV__) console.log("unblock user error:", e?.response?.data || e?.message);
     } finally {
       setBusy(false);
       setMenuOpen(false);
@@ -213,7 +214,7 @@ const ChatWindowScreen = () => {
       await clearChatApi(userId, otherId);
       setMessages([]);
     } catch (e) {
-      console.log("clear chat error:", e?.response?.data || e?.message);
+      if (__DEV__) console.log("clear chat error:", e?.response?.data || e?.message);
     } finally {
       setBusy(false);
       setMenuOpen(false);
@@ -234,7 +235,7 @@ const ChatWindowScreen = () => {
           </TouchableOpacity>
           <View style={styles.headerInfo}>
             {otherAvatar ? (
-              <Image source={{ uri: otherAvatar }} style={styles.headerAvatarImage} />
+              <Image source={{ uri: getAbsolutePhotoUrl(otherAvatar) || otherAvatar }} style={styles.headerAvatarImage} />
             ) : (
               <View style={styles.headerAvatarPlaceholder}>
                 <Text style={{ fontSize: 18 }}>👤</Text>

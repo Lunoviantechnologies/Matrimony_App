@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { SafeAreaView, View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Image } from "react-native";
 import axiosInstance from "../api/axiosInstance";
+import { getAbsolutePhotoUrl } from "../api/api";
 import { getSession, withPhotoVersion } from "../api/authSession";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { maskName } from "../utils/nameMask";
@@ -49,7 +50,7 @@ const ChatScreen = () => {
           return next;
         });
       } catch (e) {
-        console.log("chat contacts load error:", e?.response?.data || e?.message);
+        if (__DEV__) console.log("chat contacts load error:", e?.response?.data || e?.message);
       } finally {
         setLoading(false);
       }
@@ -88,7 +89,7 @@ const ChatScreen = () => {
 
     const avatarUrl = p
       ? withPhotoVersion(
-          p.updatePhoto || p.photoUrl || p.image || p.avatar || null
+          getAbsolutePhotoUrl(p.updatePhoto || p.photoUrl || p.image || p.avatar || null)
         )
       : null;
 
@@ -203,7 +204,7 @@ const ChatScreen = () => {
 
             const avatarUrl = p
               ? withPhotoVersion(
-                  p.updatePhoto || p.photoUrl || p.image || p.avatar || null
+                  getAbsolutePhotoUrl(p.updatePhoto || p.photoUrl || p.image || p.avatar || null)
                 )
               : null;
             const initial =

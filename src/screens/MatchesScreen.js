@@ -3,6 +3,7 @@ import { SafeAreaView, View, Text, TouchableOpacity, StyleSheet, ScrollView } fr
 
 const MatchesScreen = ({ navigation }) => {
   const primaryLinks = [
+    { label: "New Matches", route: "Newmatches", icon: "🆕" },
     { label: "My Matches", route: "MyMatches", icon: "❤️" },
     { label: "Near Me", route: "Nearme", icon: "📍" },
     { label: "More Matches", route: "MoreMatches", icon: "✨" },
@@ -15,33 +16,16 @@ const MatchesScreen = ({ navigation }) => {
     { label: "Rejected", route: "Rejected", icon: "❌" },
   ];
 
-  const searchLinks = [
-    { label: "Search", route: "Search", icon: "🔍" },
-    { label: "Filters", route: "Search", icon: "🎛️" },
-  ];
-
   return (
     <SafeAreaView style={styles.root}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>Matches</Text>
-        <Text style={styles.subtitle}>Browse matches and requests</Text>
+        <Text style={styles.subtitle}>Browse matches like web app</Text>
 
-        <Text style={styles.sectionLabel}>Matches</Text>
-        <View style={styles.grid}>
+        <View style={styles.tabsRow}>
           {primaryLinks.map((l) => (
-            <TouchableOpacity key={l.route} style={styles.card} onPress={() => navigation.navigate(l.route)}>
-              <Text style={styles.cardIcon}>{l.icon}</Text>
-              <Text style={styles.cardText}>{l.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <Text style={styles.sectionLabel}>Search & Filters</Text>
-        <View style={styles.grid}>
-          {searchLinks.map((l) => (
-            <TouchableOpacity key={l.route + l.label} style={styles.card} onPress={() => navigation.navigate(l.route)}>
-              <Text style={styles.cardIcon}>{l.icon}</Text>
-              <Text style={styles.cardText}>{l.label}</Text>
+            <TouchableOpacity key={l.route} style={styles.tabPill} onPress={() => navigation.navigate(l.route)}>
+              <Text style={styles.tabPillText}>{l.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -66,6 +50,21 @@ const styles = StyleSheet.create({
   title: { fontSize: 22, fontWeight: "800", color: "#1f1f39" },
   subtitle: { fontSize: 13, color: "#4b4a5f", marginBottom: 8 },
   sectionLabel: { fontSize: 13, color: "#6b7280", fontWeight: "700", marginTop: 6, marginBottom: 6 },
+  tabsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 6,
+  },
+  tabPill: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#dbe4d2",
+    borderRadius: 999,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+  },
+  tabPillText: { color: "#1f1f39", fontWeight: "700", fontSize: 13 },
   grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
   card: {
     width: "48%",

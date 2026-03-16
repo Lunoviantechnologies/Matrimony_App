@@ -26,7 +26,7 @@ const AcceptedMatchesScreen = ({ navigation }) => {
         setProfiles(Array.isArray(allProfiles.data) ? allProfiles.data : []);
         setMe(mine.data);
       } catch (e) {
-        console.log("accepted load error:", e?.response?.data || e?.message);
+        if (__DEV__) console.log("accepted load error:", e?.response?.data || e?.message);
       } finally {
         setLoading(false);
       }

@@ -34,6 +34,14 @@ import AstroTalkScreen from "../screens/AstroTalkScreen";
 import ChatScreen from "../screens/ChatScreen";
 import AcceptedMatchesScreen from "../screens/AcceptedMatchesScreen";
 import InboxScreen from "../screens/InboxScreen";
+import AboutScreen from "../screens/AboutScreen";
+import ContactScreen from "../screens/ContactScreen";
+import DisclaimerScreen from "../screens/DisclaimerScreen";
+import RaiseTicketScreen from "../screens/RaiseTicketScreen";
+import BlogListScreen from "../screens/BlogListScreen";
+import BlogDetailsScreen from "../screens/BlogDetailsScreen";
+import PaymentSuccessScreen from "../screens/PaymentSuccessScreen";
+import PaymentFailedScreen from "../screens/PaymentFailedScreen";
 
 
 
@@ -91,7 +99,7 @@ const routes = [
   { name: "Sent", component: SentRequestsScreen },
   { name: "Rejected", component: RejectedScreen },
   { name: "Accepted", component: AcceptedMatchesScreen, params: { title: "Accepted Requests" } },
-  { name: "Received", component: GenericScreen, params: { title: "Received Requests" } },
+  { name: "Received", component: RequestsScreen, options: { title: "Received Requests" } },
   { name: "ProfileView", component: ProfileView },
   { name: "EditProfile", component: EditProfile },
   { name: "PremiumSubscription", component: PremiumSubscription },
@@ -107,6 +115,14 @@ const routes = [
   { name: "CommunityGuidelines", component: CommunityGuidelinesScreen, options: { title: "Community Guidelines" } },
   { name: "RefundPolicy", component: RefundPolicyScreen, options: { title: "Refund & Cancellation" } },
   { name: "ForgotPassword", component: ForgotPasswordScreen, options: { title: "Forgot Password" } },
+  { name: "AboutUs", component: AboutScreen, options: { title: "About Us" } },
+  { name: "ContactUs", component: ContactScreen, options: { title: "Contact Us" } },
+  { name: "Disclaimer", component: DisclaimerScreen, options: { title: "Disclaimer" } },
+  { name: "RaiseTicket", component: RaiseTicketScreen, options: { title: "Raise Ticket" } },
+  { name: "BlogList", component: BlogListScreen, options: { title: "Blogs" } },
+  { name: "BlogDetails", component: BlogDetailsScreen, options: { title: "Blog" } },
+  { name: "PaymentSuccess", component: PaymentSuccessScreen, options: { title: "Payment Success", headerShown: false } },
+  { name: "PaymentFailed", component: PaymentFailedScreen, options: { title: "Payment Failed", headerShown: false } },
 ];
 
 const AppNavigator = () => (
