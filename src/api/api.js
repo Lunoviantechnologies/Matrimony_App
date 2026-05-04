@@ -238,13 +238,12 @@ export const contactSendApi = (payload) =>
 // ==========================
 // POST /tickets -> create support ticket (body or FormData for Payment Issue)
 export const createTicketApi = (payload) =>
-  axiosInstance.post("/tickets", payload);
+  axiosInstance.post("/api/tickets", payload); // ADDED /api HERE
 
 export const createTicketFormDataApi = (formData) =>
-  axiosInstance.post("/tickets", formData, {
+  axiosInstance.post("/api/tickets", formData, { // ADDED /api HERE
     headers: { "Content-Type": "multipart/form-data" },
   });
-
 // ==========================
 // BLOG — same as web (public list, slug, like, comment)
 // ==========================

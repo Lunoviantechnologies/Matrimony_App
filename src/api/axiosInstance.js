@@ -2,8 +2,16 @@ import axios from "axios";
 import { BASE_URL } from "@env";
 import { getSession, loadSessionFromStorage, clearSession } from "./authSession";
 
+const normalizeApiBaseUrl = (value) => {
+  const trimmed = typeof value === "string" && value.trim() ? value.trim().replace(/\/+$/, "") : "";
+  if (!trimmed) return "https://vivahjeevan.com";
+
+  // Guard against POST-to-GET redirects caused by accidental http:// production URLs.
+  return trimmed.replace(/^http:\/\/((?:www\.)?vivahjeevan\.com)(?=\/|$)/i, "https://$1");
+};
+
 // Fallback so app never crashes if .env wasn't inlined (e.g. stale build)
-const API_BASE = typeof BASE_URL === "string" && BASE_URL.trim() ? BASE_URL.trim().replace(/\/+$/, "") : "https://vivahjeevan.com";
+const API_BASE = normalizeApiBaseUrl(BASE_URL);
 
 const axiosInstance = axios.create({
   baseURL: API_BASE,

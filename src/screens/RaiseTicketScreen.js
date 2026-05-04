@@ -105,13 +105,16 @@ const RaiseTicketScreen = () => {
 
         await createTicketFormDataApi(formData);
       } else {
+        // Convert memberId to an integer if it exists, otherwise pass undefined
+        const numericMemberId = form.memberId ? parseInt(form.memberId, 10) : undefined;
+
         await createTicketApi({
           issueCategory: CATEGORY_MAP[form.category] || "OTHER",
           name: form.name.trim(),
           email: form.email.trim(),
           phoneNumber: form.phone.trim(),
           description: form.message.trim(),
-          memberId: form.memberId || undefined,
+          memberId: numericMemberId, // <-- Send as a Number!
         });
       }
       Alert.alert("Success", "Ticket raised successfully. We will get back to you soon.");
@@ -124,8 +127,16 @@ const RaiseTicketScreen = () => {
       }));
       setAttachments([]);
     } catch (err) {
-      if (__DEV__) console.log("Raise ticket error:", err?.response?.data || err.message);
-      Alert.alert("Failed", err?.response?.data?.message || "Could not submit ticket. Try again.");
+      if (__DEV__) console.log("Raise ticket error details:", err?.response?.data || err);
+
+      let detailedError = err.message;
+      if (err?.response?.data) {
+        detailedError = typeof err.response.data === "string"
+          ? err.response.data
+          : JSON.stringify(err.response.data);
+      }
+
+      Alert.alert("Debug Backend Error", detailedError);
     } finally {
       setLoading(false);
     }
