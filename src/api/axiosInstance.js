@@ -22,19 +22,30 @@ const axiosInstance = axios.create({
 });
 
 axiosInstance.interceptors.request.use(async (config) => {
-  let { token } = getSession();
-  // If memory is empty (app reload), hydrate from storage.
-  if (!token) {
-    const restored = await loadSessionFromStorage();
-    token = restored.token;
+  const isAuthEndpoint = config.url && (
+    config.url.includes("/api/auth/login") ||
+    config.url.includes("/api/profiles/register") ||
+    config.url.includes("/api/auth/forgot-password") ||
+    config.url.includes("/api/auth/verify-otp") ||
+    config.url.includes("/api/auth/reset-password")
+  );
+
+  if (!isAuthEndpoint) {
+    let { token } = getSession();
+
+    // If memory is empty (app reload), hydrate from storage.
+    if (!token) {
+      const restored = await loadSessionFromStorage();
+      token = restored.token;
+    }
+
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
   }
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+
   return config;
 });
-
-// Handle 401 (expired/invalid token) — clear session so app can show login (same as web)
 axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
