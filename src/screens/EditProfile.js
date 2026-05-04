@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import FaceDetection from "@react-native-ml-kit/face-detection";
 import {
   SafeAreaView,
   View,
@@ -129,6 +130,11 @@ const isFilledValue = (value) => {
 const PHOTO_SLOTS = ["updatePhoto", "updatePhoto1", "updatePhoto2", "updatePhoto3", "updatePhoto4"];
 const MAX_PHOTOS = 5;
 const TAB_ITEMS = ["Personal", "Lifestyle", "Education", "Photos"];
+const FACE_DETECTION_OPTIONS = {
+  performanceMode: "accurate",
+  landmarkMode: "all",
+  minFaceSize: 0.15,
+};
 
 const EditProfile = ({ navigation }) => {
   const [form, setForm] = useState({});
@@ -199,6 +205,31 @@ const EditProfile = ({ navigation }) => {
   const goPrevPhoto = () => setCurrentPhotoIndex((i) => (i <= 0 ? MAX_PHOTOS - 1 : i - 1));
   const goNextPhoto = () => setCurrentPhotoIndex((i) => (i >= MAX_PHOTOS - 1 ? 0 : i + 1));
 
+  const validateSelectedPhoto = async (uri) => {
+    try {
+      const faces = await FaceDetection.detect(uri, FACE_DETECTION_OPTIONS);
+      if (Array.isArray(faces) && faces.length > 0) return true;
+
+      Alert.alert(
+        "Invalid Photo",
+        "We couldn't detect a human face in this photo. Please upload a clear profile picture."
+      );
+      return false;
+    } catch (faceError) {
+      console.error("Face detection failed", faceError);
+      const faceDetectionUnavailable =
+        typeof faceError?.message === "string" && faceError.message.includes("doesn't seem to be linked");
+
+      Alert.alert(
+        "Photo validation failed",
+        faceDetectionUnavailable
+          ? "Face detection was installed, but the app needs a rebuild before it can validate photos."
+          : "We couldn't verify this photo. Please try again with a clear image of a person."
+      );
+      return false;
+    }
+  };
+
   const pickAndUploadPhoto = async () => {
     try {
       const ImagePicker = require("react-native-image-picker");
@@ -227,11 +258,19 @@ const EditProfile = ({ navigation }) => {
           const uri = asset.uri;
           const type = asset.type || "image/jpeg";
           const name = asset.fileName || `photo_${Date.now()}.jpg`;
-          const formData = new FormData();
-          formData.append("file", { uri, type, name });
 
           setUploading(true);
           setUploadProgress(0);
+
+          const hasValidFace = await validateSelectedPhoto(uri);
+          if (!hasValidFace) {
+            setUploading(false);
+            return;
+          }
+
+          const formData = new FormData();
+          formData.append("file", { uri, type, name });
+
           try {
             // Slot 0 (updatePhoto) uses /api/admin/photo; slots 1-4 use /api/profile-photos/{slot}
             const res =
@@ -479,6 +518,9 @@ const EditProfile = ({ navigation }) => {
               >
                 <Text style={styles.updateOverlayText}>📷 Update</Text>
               </TouchableOpacity>
+              {uploading && uploadProgress === 0 && (
+                <Text style={styles.progressText}>Checking photo...</Text>
+              )}
               {uploadProgress > 0 && uploadProgress < 100 && (
                 <Text style={styles.progressText}>Uploading... {uploadProgress}%</Text>
               )}
@@ -603,7 +645,9 @@ const EditProfile = ({ navigation }) => {
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitleRed}>Profile Photos</Text>
               </View>
-              <Text style={styles.photosHelpText}>Use the photo section above to view, upload, switch, and delete profile photos.</Text>
+              <Text style={styles.photosHelpText}>
+                Use the photo section above to view, upload, switch, and delete profile photos. Only clear photos with a detectable human face can be uploaded.
+              </Text>
             </View>
           )}
           </View>
